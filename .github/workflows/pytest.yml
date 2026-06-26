@@ -14,10 +14,10 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Instalar Dependencias do Ecossistema
+      - name: Instalar Dependencias Forçadas
         run: |
           pip install pytest
-          pip install -r requirements.txt
+          pip install openai
 
       - name: Executar Testes Automatizados
         run: pytest test_synapse.py
