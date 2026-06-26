@@ -1,7 +1,12 @@
 # app.py
+import os
+try:
+    import openai
+except ImportError:
+    os.system("pip install openai")
+
 import streamlit as st
 import sys
-import os
 
 # Garante que o Streamlit encontre a pasta 'src' no servidor em nuvem
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
@@ -52,15 +57,11 @@ checklist_input = st.text_input("Definição de escopo (Requisito do Mediador):"
 if st.button("Ativar Synapse Kernel", type="primary"):
     if tarefa_input.strip():
         with st.spinner("🤖 Agentes conversando e processando no barramento..."):
-            # Monta o payload conforme as regras do nosso ecossistema
             payload_usuario = {
                 "tarefa": tarefa_input,
                 "status": checklist_input
             }
-            
-            # Dispara através do Kernel oficial
             resultado = st.session_state.kernel.start_pipeline(payload_usuario)
-            
             st.success("🏁 Pipeline Executado!")
             st.info(f"📊 **Retorno do Ecossistema:** {resultado}")
             st.toast("Fluxo concluído com sucesso!")
