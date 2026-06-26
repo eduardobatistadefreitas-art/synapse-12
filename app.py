@@ -26,10 +26,10 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 1.5 Flash - Endereço Corrigido"""
+    """Executa a chamada REST nativa para o Gemini 1.5 Flash - Host Corrigido"""
     try:
-        # 🚀 ENDEREÇO PURO CORRIGIDO: Removeu o https:// para zerar o erro nonnumeric port
-        conn = http.client.HTTPSConnection("://googleapis.com")
+        # 🚀 CORREÇÃO CRÍTICA: Host puro do Google AI Studio sem nenhum prefixo de protocolo
+        conn = http.client.HTTPSConnection("generativelanguage.googleapis.com", timeout=15)
         headers = {"Content-Type": "application/json"}
         
         # Estrutura oficial do prompt do Gemini
@@ -46,6 +46,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
         conn.request("POST", url, payload, headers)
         res = conn.getresponse()
         data = res.read()
+        conn.close()
         
         if res.status == 200:
             json_data = json.loads(data.decode("utf-8"))
@@ -57,7 +58,8 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
 
 if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
-        gemini_key = os.getenv("GEMINI_API_KEY")
+        # Tenta pegar dos Secrets do Streamlit ou do ambiente local
+        gemini_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else os.getenv("GEMINI_API_KEY")
         
         if not gemini_key:
             st.error("Chave GEMINI_API_KEY não localizada nos Secrets do Streamlit. Insira a chave para ativar as IAs.")
