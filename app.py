@@ -26,14 +26,11 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 1.5 Flash com Host Sanitizado"""
+    """Executa a chamada REST nativa para o Gemini 2.5 Flash no endpoint estável v1"""
     try:
-        # 🚀 BLINDAGEM TOTAL: Força a limpeza absoluta de qualquer caractere inválido de protocolo
-        host_sujo = "generativelanguage.googleapis.com"
-        host_limpo = host_sujo.replace("https://", "").replace("http://", "").replace("//", "").replace(":", "")
-        
-        # Abre a conexão estritamente com o domínio limpo
-        conn = http.client.HTTPSConnection(host_limpo, timeout=15)
+        # Host limpo e higienizado para o socket
+        host = "generativelanguage.googleapis.com"
+        conn = http.client.HTTPSConnection(host, timeout=15)
         headers = {"Content-Type": "application/json"}
         
         # Estrutura oficial do prompt do Gemini
@@ -46,8 +43,8 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
             "generationConfig": {"temperature": 0.2}
         })
         
-        # Rota de produção v1 para evitar Erros 404
-        url = f"/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+        # 🚀 ATUALIZAÇÃO CRÍTICA: Migração para o modelo ativo gemini-2.5-flash na rota estável v1
+        url = f"/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
         conn.request("POST", url, payload, headers)
         res = conn.getresponse()
         data = res.read().decode("utf-8")
@@ -55,7 +52,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
         
         if res.status == 200:
             json_data = json.loads(data)
-            # Extração segura e validada da estrutura oficial em formato de lista (JSON nativo)
+            # Extração limpa e segura do payload do Google
             return json_data["candidates"][0]["content"]["parts"][0]["text"]
         return f"[Erro HTTP {res.status}]: {data[:100]}"
     except Exception as e:
@@ -63,7 +60,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
 
 if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
-        # Busca segura nos Secrets do Streamlit Cloud ou Ambiente Local
+        # Captura automática dos Secrets do Streamlit
         gemini_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else os.getenv("GEMINI_API_KEY")
         
         if not gemini_key:
@@ -112,4 +109,4 @@ if st.button("Dar vida ao projeto", type="primary"):
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura da Rede"):
     st.caption("Synapse 12 Engine • Orquestração Concorrente Nativa • Google AI Studio API Layer")
-                
+    
