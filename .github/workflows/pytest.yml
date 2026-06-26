@@ -14,9 +14,11 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Instalar Pytest
-        run: pip install pytest
+      - name: Instalar Dependencias do Ecossistema
+        run: |
+          pip install pytest
+          pip install -r requirements.txt
 
       - name: Executar Testes Automatizados
         run: pytest test_synapse.py
-
+        
