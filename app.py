@@ -65,7 +65,7 @@ if st.button("Dar vida ao projeto", type="primary"):
             if groq_key:
                 try:
                     # 🚀 CHAMADA HTTP NATIVA (SEM BIBLIOTECAS EXTERNAS / IMUNE A CONFLITOS)
-                    conn = http.client.HTTPSConnection("://groq.com")
+                    conn = http.client.HTTPSConnection("api.groq.com")
                     
                     payload = json.dumps({
                         "model": "deepseek-r1-distill-llama-70b",
