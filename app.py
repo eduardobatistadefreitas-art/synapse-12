@@ -1,14 +1,7 @@
 # app.py
-import os
-os.system("pip install openai streamlit")
-
-try:
-    import openai
-except ImportError:
-    os.system("pip install openai")
-
 import streamlit as st
 import sys
+import os
 
 # Garante que o Streamlit encontre a pasta 'src' no servidor em nuvem
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
@@ -39,11 +32,11 @@ if "bus" not in st.session_state:
     ia04 = AgenteSupervisor("IA04", "Supervisor", st.session_state.bus)
     ia05 = AgenteAuditor("IA05", "Auditor", st.session_state.bus)
     
-    # 🎭 CONFIGURAÇÃO DOS 4 CÉREBROS REAIS E CONCORRENTES (POLIGLOTA GRÁTIS)
-    ia01.model = "gemma2-9b-it"                     # Google via Groq
-    ia02.model = "deepseek-r1-distill-llama-70b"    # DeepSeek via Groq
-    ia03.model = "gemini-1.5-flash"                 # Google AI Studio direto
-    ia05.model = "llama-3.3-70b-specdec"            # Meta via Groq
+    # 🎭 CONFIGURAÇÃO DOS CÉREBROS REAIS E CONCORRENTES VIA API REST
+    ia01.model = "gemma2-9b-it"                     
+    ia02.model = "deepseek-r1-distill-llama-70b"    
+    ia03.model = "gemini-1.5-flash"                 
+    ia05.model = "llama-3.3-70b-specdec"            
     
     # Registra a colmeia conectada no barramento
     st.session_state.bus.registrar(ia01)
@@ -65,15 +58,11 @@ checklist_input = st.text_input("Definição de escopo (Requisito do Mediador):"
 if st.button("Ativar Synapse Kernel", type="primary"):
     if tarefa_input.strip():
         with st.spinner("🤖 Conectando APIs gratuitas e iniciando debate entre as IAs..."):
-            # Monta o payload conforme as regras do nosso ecossistema
             payload_usuario = {
                 "tarefa": tarefa_input,
                 "status": checklist_input
             }
-            
-            # Dispara através do Kernel oficial
             resultado = st.session_state.kernel.start_pipeline(payload_usuario)
-            
             st.success("🏁 Pipeline Executado com Sucesso!")
             st.info(f"📊 **Retorno Final da Orquestração:** {resultado}")
             st.toast("Fluxo concluído!")
@@ -81,4 +70,4 @@ if st.button("Ativar Synapse Kernel", type="primary"):
         st.warning("Por favor, digite uma tarefa para os agentes executarem.")
 
 st.markdown("---")
-st.caption("Synapse 12 • Modo de Operação Poliglota Ativo • Executando via Streamlit Engine")
+st.caption("Synapse 12 • Modo de Operação Poliglota Ativo • Executando via Streamlit REST Engine")
