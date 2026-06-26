@@ -7,33 +7,50 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 from core.middleware import MiddlewareResiliencia
 from bus.message_bus import MessageBus
-from utils.logger import SynapseLogger
 from agents.ia01_mediador import AgenteMediador
+from agents.ia03_critico import AgenteCritico
 
-# Criamos um IA02 Simulado (Mock) para interceptar o envio do IA01
-class AgenteExecutorMock:
-    def __init__(self, agent_id):
-        self.agent_id = agent_id
-    def handle_logic(self, tag, payload):
-        return f"EXECUTOR_RECEBEU:{tag}"
+# Mocks para simular os agentes que ainda não subimos para o GitHub
+class AgenteMockGenerico:
+    def __init__(self, agent_id): self.agent_id = agent_id
+    def handle_logic(self, tag, payload): return f"{self.agent_id}_RECEBEU:{tag}"
 
-def test_mediador_bloqueio_plano_basic():
+def test_interacao_ia01_bloqueios():
     bus = MessageBus()
-    mediador = AgenteMediador("IA01", "Mediador", bus, user_plan="BASIC")
+    mediador = AgenteMediador("IA01", "Mediador", bus)
     bus.registrar(mediador)
     
-    # Testa se o mediador barra termos complexos no plano BASIC
-    payload_complexo = {"tarefa": "Configurar um banco de dados relacional"}
-    resposta = bus.enviar("USER", "IA01", "[CMD:PROCESSAR]", payload_complexo)
+    resposta = bus.enviar("USER", "IA01", "[CMD:PROCESSAR]", {"tarefa": "banco de dados complexo"})
     assert "[ERR:ESCOPO_NAO_PERMITIDO]" in resposta
 
-def test_mediador_checklist_incompleto():
+def test_ia03_controle_de_cotas_free():
     bus = MessageBus()
-    mediador = AgenteMediador("IA01", "Mediador", bus, user_plan="BASIC")
-    bus.registrar(mediador)
+    critico = AgenteCritico("IA03", "Critico", bus, user_tier="FREE")
+    ia04 = AgenteMockGenerico("IA04")
     
-    # Payload sem a palavra 'conclusao' deve pedir mais dados
-    payload_incompleto = {"tarefa": "Criar um script simples"}
+    bus.registrar(critico)
+    bus.registrar(ia04)
+    
+    # 1. Primeira reprovação: Como o tier é FREE (limite=1), deve esgotar imediatamente
+    # Simulamos o envelope que o barramento enviaria
+    envelope_falso = {"header": {}, "body": "Código com bug"}
+    resposta = bus.enviar("IA05", "IA03", "[FEEDBACK_IA05_REPROVADO]", envelope_falso)
+    
+    # Garante que o IA03 barrou e encaminhou para o IA04 com a tag correta
+    assert resposta == "IA04_RECEBEU:[STATUS:ESGOTADO]"
+
+def test_ia03_fluxo_aprovado():
+    bus = MessageBus()
+    critico = AgenteCritico("IA03", "Critico", bus, user_tier="FREE")
+    ia04 = AgenteMockGenerico("IA04")
+    
+    bus.registrar(critico)
+    bus.registrar(ia04)
+    
+    envelope_falso = {"header": {}, "body": "Código Perfeito"}
+    resposta = bus.enviar("IA05", "IA03", "[FEEDBACK_IA05_APROVADO]", envelope_falso)
+    
+    assert resposta == "IA04_RECEBEU:[STATUS:PRONTO]"
     resposta = bus.enviar("USER", "IA01", "[CMD:PROCESSAR]", payload_incompleto)
     assert "[IA01] Por favor" in resposta
 
