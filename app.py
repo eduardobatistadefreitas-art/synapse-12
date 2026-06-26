@@ -1,5 +1,7 @@
 # app.py
 import os
+os.system("pip install openai streamlit")
+
 try:
     import openai
 except ImportError:
