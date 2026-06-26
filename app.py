@@ -26,9 +26,8 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 1.5 Flash - Host Corrigido"""
+    """Executa a chamada REST nativa para o Gemini 1.5 Flash com tratamento seguro de JSON"""
     try:
-        # 🚀 CORREÇÃO CRÍTICA: Host puro do Google AI Studio sem nenhum prefixo de protocolo
         conn = http.client.HTTPSConnection("generativelanguage.googleapis.com", timeout=15)
         headers = {"Content-Type": "application/json"}
         
@@ -45,26 +44,31 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
         url = f"/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         conn.request("POST", url, payload, headers)
         res = conn.getresponse()
-        data = res.read()
+        data = res.read().decode("utf-8")
         conn.close()
         
         if res.status == 200:
-            json_data = json.loads(data.decode("utf-8"))
-            # Extração segura da estrutura de texto de retorno do Google API
-            return json_data["candidates"][0]["content"]["parts"][0]["text"]
-        return f"[Erro HTTP {res.status}]: {data.decode('utf-8')[:100]}"
+            json_data = json.loads(data)
+            # Navegação ultra segura pela árvore do dicionário
+            candidates = json_data.get("candidates", [])
+            if candidates:
+                content = candidates[0].get("content", {})
+                parts = content.get("parts", [])
+                if parts:
+                    return parts[0].get("text", "[Erro]: Resposta sem texto válido.")
+            return f"[Erro Estrutura]: Chaves ausentes no JSON da API -> {data[:100]}"
+        return f"[Erro HTTP {res.status}]: {data[:100]}"
     except Exception as e:
         return f"[Falha de Conexão]: {e}"
 
 if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
-        # Tenta pegar dos Secrets do Streamlit ou do ambiente local
+        # Busca segura nos Secrets do Streamlit Cloud
         gemini_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else os.getenv("GEMINI_API_KEY")
         
         if not gemini_key:
             st.error("Chave GEMINI_API_KEY não localizada nos Secrets do Streamlit. Insira a chave para ativar as IAs.")
         else:
-            # Criando contêineres visuais para mostrar o debate da Synapse acontecendo na tela
             st.write("### ⚙️ Debate e Orquestração da Synapse em Tempo Real:")
             
             # --- CASO 1: IA01 MEDIADOR ---
@@ -93,7 +97,7 @@ if st.button("Dar vida ao projeto", type="primary"):
                 p_sistema_5 = "Você é o IA05 Auditor de Código/Adversário. Analise o código gerado pelo Executor e aponte se ele está seguro e funcional ou se tem algum erro grave."
                 auditoria = chamar_gemini_direto(gemini_key, p_sistema_5, codigo_v1)
                 st.write(auditoria)
-                s4.update(label="⚖️ IA05 [Auditor] finalizou a Auditoria Técnico!", state="complete")
+                s4.update(label="⚖️ IA05 [Auditor] finalizou a Auditoria Técnica!", state="complete")
 
             st.success("🎉 Processo de Orquestração Concluído pela Colmeia!")
             
