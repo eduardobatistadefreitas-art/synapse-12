@@ -18,4 +18,5 @@ jobs:
         run: pip install pytest
 
       - name: Executar Testes Automatizados
-        run: pytest test_middleware.py
+        run: pytest test_synapse.py
+
