@@ -5,35 +5,32 @@ from utils.logger import SynapseLogger
 class AgenteExecutor(BaseAgent):
     """
     IA02 - EXECUTOR: O Arquiteto de Software.
-    Recebe o plano do IA03 e escreve o código funcional.
+    Escreve código funcional baseado no briefing gerado pelo Mediador.
     """
     def __init__(self, agent_id, role, bus):
         super().__init__(agent_id, role, bus)
         self.log = SynapseLogger()
+        self.model = "deepseek-r1-distill-llama-70b" # Cérebro avançado de código
 
     def handle_logic(self, tag, payload):
-        """
-        O Executor opera estritamente sobre um plano recebido.
-        Se não houver um plano estruturado, ele solicita correção ao IA03.
-        """
-        if tag in ["[CMD:EXECUTAR_PROJETO]", "[CMD:CORRIGIR_PROJETO]"]:
-            self.log.info("Iniciando codificação conforme plano do IA03.")
+        if tag in ["[CMD:EXECUTAR_PROJETO]", "[CMD:CORRIGIR_PROJETO]", "[CMD:INICIAR_ESQUELETO]"]:
+            # Desembrulha o envelope de dados
+            corpo = payload.get("body") if isinstance(payload, dict) else payload
             
-            # Extrai o corpo real do payload de dentro do envelope do barramento
-            corpo_payload = payload.get("body") if isinstance(payload, dict) else payload
+            self.log.info("Iniciando codificação inteligente via DeepSeek Engine...")
             
-            try:
-                codigo_gerado = self._traduzir_plano_em_codigo(corpo_payload)
-                return self.send_to("IA03", "[DATA:CODIGO_PRONTO]", codigo_gerado)
-            except Exception as e:
-                self.log.erro(f"Falha na execução: {e}")
-                return self.send_to("IA03", "[ERR:FALHA_CODIFICACAO]", str(e))
-
-    def _traduzir_plano_em_codigo(self, plano):
-        """
-        Transforma o dicionário de especificações em arquivos reais.
-        Aqui reside a lógica de escrita de arquivos do sistema.
-        """
-        self.log.info("Traduzindo blueprint para estrutura de arquivos...")
-        return {"status": "SUCESSO", "arquivos": ["main.py", "logic.py"]}
-      
+            prompt_sistema = (
+                "Você é o IA02 - EXECUTOR. Um programador sênior focado em resultados. "
+                "Escreva um código em Python completo, funcional e bem estruturado que resolva o pedido. "
+                "Não mande explicações de texto, coloque apenas o código dentro de blocos markdown de programação."
+            )
+            
+            prompt_usuario = f"Escreva o software baseado neste briefing técnico: {corpo}"
+            
+            # Chama a inteligência profunda do DeepSeek na Groq de graça
+            codigo_gerado = self.chamar_ia(prompt_sistema, prompt_usuario)
+            
+            # Como o fluxo é síncrono e estamos exibindo o fim da linha, 
+            # retornamos o código direto para o painel do app
+            return codigo_gerado
+            
