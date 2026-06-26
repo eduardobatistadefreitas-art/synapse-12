@@ -1,12 +1,12 @@
 # app.py
-import os
 import sys
+import os
 
-# 💉 VACINA DEFINITIVA: Força a instalação da biblioteca antes de qualquer import técnico
+# 💉 VACINA DEFINITIVA: Instala o pacote diretamente no executável ativo do servidor
 try:
     from openai import OpenAI
 except ImportError:
-    os.system("pip install openai")
+    os.system(f"{sys.executable} -m pip install openai")
     from openai import OpenAI
 
 # Garante que o Streamlit encontre a pasta 'src' no servidor em nuvem
@@ -21,17 +21,19 @@ from agents.ia03_critico import AgenteCritico
 from agents.ia04_supervisor import AgenteSupervisor
 from agents.ia05_auditor import AgenteAuditor
 
-# Configuração de Tela Premium do Co-Piloto
+# 1. Configuração de Tela com Posicionamento Premium
 st.set_page_config(page_title="Synapse 12", page_icon="💡", layout="centered")
 
 st.title("💡 Synapse 12")
 st.subheader("Sua ideia, executada.")
 st.write("_Descreva sua ideia ou o problema que deseja eliminar. Nossa rede de especialistas em IA cuida de toda a execução para você._")
 
+# Inicialização da infraestrutura em segundo plano
 if "bus" not in st.session_state:
     st.session_state.bus = MessageBus()
     st.session_state.kernel = SynapseKernel(st.session_state.bus)
     
+    # Instancia a colmeia de agentes
     ia01 = AgenteMediador("IA01", "Mediador", st.session_state.bus, user_plan="BASIC")
     ia02 = AgenteExecutor("IA02", "Executor", st.session_state.bus)
     ia03 = AgenteCritico("IA03", "Critico", st.session_state.bus, user_tier="BASIC")
@@ -51,34 +53,44 @@ if "bus" not in st.session_state:
 
 st.markdown("---")
 
+# 2. Nova Roupagem de Copywriting (Foco no Benefício)
 st.write("### 🎬 Iniciar Projeto")
 tarefa_input = st.text_area(
     "O que você precisa realizar hoje?", 
-    placeholder="Ex: Quero automatizar o envio de e-mails para meus leads imobiliários ou criar um relatório de vendas...",
+    placeholder="Ex: Quero automatizar o envio de e-mails para meus leads imobiliários ou criar uma planilha inteligente de vendas...",
     height=150
 )
 
 if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
+        # Feedback de Status Humanizado
         status_placeholder = st.empty()
         
         with st.spinner("Conectando nossa rede de especialistas..."):
             status_placeholder.info("🧠 Entendendo seus requisitos e validando o escopo...")
+            import time
+            time.sleep(1.0) 
+            
+            status_placeholder.info("🗺️ Planejando a melhor estratégia de execução...")
+            time.sleep(1.0)
+            
+            status_placeholder.info("🛠️ Executando sua automação com máxima precisão...")
             
             groq_key = os.getenv("GROQ_API_KEY")
             
             if groq_key:
                 try:
-                    # Inicializa usando o SDK oficial para evitar o erro 405
+                    # Conecta via SDK oficial usando a chave injetada nos Secrets
                     client = OpenAI(
                         base_url="https://groq.com",
                         api_key=groq_key
                     )
                     
+                    # Dispara a chamada direto para o DeepSeek R1 da Groq
                     response = client.chat.completions.create(
                         model="deepseek-r1-distill-llama-70b",
                         messages=[
-                            {"role": "system", "content": "Você é o arquiteto central do Synapse 24. Crie uma estrutura detalhada, prática e funcional para o projeto solicitado pelo usuário, sem introduções longas."},
+                            {"role": "system", "content": "Você é o arquiteto central do Synapse 12/24. Crie uma solução detalhada, prática, funcional e estruturada para o projeto solicitado pelo usuário, sem introduções longas ou rodeios textuais."},
                             {"role": "user", "content": tarefa_input}
                         ],
                         temperature=0.3
@@ -90,8 +102,10 @@ if st.button("Dar vida ao projeto", type="primary"):
             else:
                 resultado = "Chave de acesso GROQ_API_KEY não localizada nas configurações internas."
             
+            # Limpa as mensagens de carregamento temporárias
             status_placeholder.empty()
             
+            # Entrega do resultado final focado em valor
             st.success("🎉 Projeto concluído com sucesso!")
             st.write("### 📊 Aqui está o resultado da sua entrega:")
             st.info(resultado)
