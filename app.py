@@ -26,12 +26,17 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 2.5 Flash no endpoint estável v1"""
+    """Executa a chamada REST nativa com timeout estendido e persistência de conexão"""
     try:
-        # Host limpo e higienizado para o socket
         host = "generativelanguage.googleapis.com"
-        conn = http.client.HTTPSConnection(host, timeout=15)
-        headers = {"Content-Type": "application/json"}
+        # 🚀 ALTERAÇÃO CRÍTICA: Timeout estendido para 60 segundos (evita read timeout de agentes complexos)
+        conn = http.client.HTTPSConnection(host, timeout=60)
+        
+        # Cabeçalhos otimizados para manter o túnel estável
+        headers = {
+            "Content-Type": "application/json",
+            "Connection": "keep-alive"
+        }
         
         # Estrutura oficial do prompt do Gemini
         payload = json.dumps({
@@ -43,16 +48,16 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
             "generationConfig": {"temperature": 0.2}
         })
         
-        # 🚀 ATUALIZAÇÃO CRÍTICA: Migração para o modelo ativo gemini-2.5-flash na rota estável v1
+        # Mantendo o modelo robusto ativo gemini-2.5-flash
         url = f"/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
         conn.request("POST", url, payload, headers)
+        
         res = conn.getresponse()
         data = res.read().decode("utf-8")
         conn.close()
         
         if res.status == 200:
             json_data = json.loads(data)
-            # Extração limpa e segura do payload do Google
             return json_data["candidates"][0]["content"]["parts"][0]["text"]
         return f"[Erro HTTP {res.status}]: {data[:100]}"
     except Exception as e:
@@ -60,7 +65,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
 
 if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
-        # Captura automática dos Secrets do Streamlit
+        # Busca nos Secrets do Streamlit Cloud
         gemini_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else os.getenv("GEMINI_API_KEY")
         
         if not gemini_key:
