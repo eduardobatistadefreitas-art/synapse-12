@@ -26,9 +26,14 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 1.5 Flash - Endpoint Estável v1"""
+    """Executa a chamada REST nativa para o Gemini 1.5 Flash com Host Sanitizado"""
     try:
-        conn = http.client.HTTPSConnection("://googleapis.com", timeout=15)
+        # 🚀 BLINDAGEM TOTAL: Força a limpeza absoluta de qualquer caractere inválido de protocolo
+        host_sujo = "generativelanguage.googleapis.com"
+        host_limpo = host_sujo.replace("https://", "").replace("http://", "").replace("//", "").replace(":", "")
+        
+        # Abre a conexão estritamente com o domínio limpo
+        conn = http.client.HTTPSConnection(host_limpo, timeout=15)
         headers = {"Content-Type": "application/json"}
         
         # Estrutura oficial do prompt do Gemini
@@ -41,7 +46,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
             "generationConfig": {"temperature": 0.2}
         })
         
-        # 🚀 CORREÇÃO CRÍTICA: Alterado de /v1beta/ para /v1/ para evitar o Erro 404 Not Found
+        # Rota de produção v1 para evitar Erros 404
         url = f"/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
         conn.request("POST", url, payload, headers)
         res = conn.getresponse()
@@ -50,7 +55,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
         
         if res.status == 200:
             json_data = json.loads(data)
-            # Extração segura usando indexação padrão corrigida
+            # Extração segura e validada da estrutura oficial em formato de lista (JSON nativo)
             return json_data["candidates"][0]["content"]["parts"][0]["text"]
         return f"[Erro HTTP {res.status}]: {data[:100]}"
     except Exception as e:
@@ -58,7 +63,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
 
 if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
-        # Busca segura nos Secrets do Streamlit Cloud
+        # Busca segura nos Secrets do Streamlit Cloud ou Ambiente Local
         gemini_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else os.getenv("GEMINI_API_KEY")
         
         if not gemini_key:
@@ -107,4 +112,4 @@ if st.button("Dar vida ao projeto", type="primary"):
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura da Rede"):
     st.caption("Synapse 12 Engine • Orquestração Concorrente Nativa • Google AI Studio API Layer")
-    
+                
