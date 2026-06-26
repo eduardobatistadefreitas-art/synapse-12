@@ -1,3 +1,5 @@
+import os
+os.system("pip install openai")
 # src/agents/base_agent.py
 import time
 import os
