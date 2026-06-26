@@ -12,28 +12,51 @@ from agents.ia01_mediador import AgenteMediador
 from agents.ia03_critico import AgenteCritico
 from agents.ia02_executor import AgenteExecutor
 
-class AgenteMockGenerico(BaseAgent):
+# Mock genérico para isolar as saídas sem causar chamadas em cascata
+class AgenteMockIsolado(BaseAgent):
     def handle_logic(self, tag, payload):
-        return f"{self.agent_id}_RECEBEU:{tag}"
+        return f"MOCK_RECEBEU:{tag}"
 
 def test_middleware_latencia():
     middleware = MiddlewareResiliencia(tau_validade_max=0.05)
     t_origem = time.perf_counter()
     assert middleware.filtrar_comando("[TESTE]", t_origem) == "[TESTE]"
 
-def test_executor_fluxo_codificacao():
+def test_interacao_ia01_bloqueios():
+    bus = MessageBus()
+    mediador = AgenteMediador("IA01", "Mediador", bus)
+    bus.registrar(mediador)
+    
+    resposta = bus.enviar("USER", "IA01", "[CMD:PROCESSAR]", {"tarefa": "banco de dados complexo"})
+    assert "[ERR:ESCOPO_NAO_PERMITIDO]" in resposta
+
+def test_executor_isolado():
     bus = MessageBus()
     executor = AgenteExecutor("IA02", "Executor", bus)
     bus.registrar(executor)
     
-    # Criamos um mock de IA03 para registrar no barramento e receber o retorno
-    critico_mock = AgenteMockGenerico("IA03", "Critico", bus)
-    bus.registrar(critico_mock)
+    # Registramos um mock para o IA03 para interceptar a saída do Executor sem loop
+    ia03_mock = AgenteMockIsolado("IA03", "Critico", bus)
+    bus.registrar(ia03_mock)
     
-    # Envia o comando simulando o envelope padrão
     envelope_falso = {"header": {}, "body": {"especificacao": "app"}}
     resposta = bus.enviar("IA03", "IA02", "[CMD:EXECUTAR_PROJETO]", envelope_falso)
     
+    assert resposta == "MOCK_RECEBEU:[DATA:CODIGO_PRONTO]"
+
+def test_ia03_isolado_reprovacao():
+    bus = MessageBus()
+    critico = AgenteCritico("IA03", "Critico", bus, user_tier="BASIC")
+    bus.registrar(critico)
+    
+    # Registramos um mock para o IA02 para interceptar o reenvio do Critico de forma limpa
+    ia02_mock = AgenteMockIsolado("IA02", "Executor", bus)
+    bus.registrar(ia02_mock)
+    
+    envelope_reprovado = {"header": {}, "body": "Falta tratamento de erro"}
+    resposta = bus.enviar("IA05", "IA03", "[FEEDBACK_IA05_REPROVADO]", envelope_reprovado)
+    
+    assert resposta == "MOCK_RECEBEU:[CMD:CORRIGIR_PROJETO]"
     # O executor processa e responde enviando para o IA03_Mock através do barramento
     assert resposta == "IA03_RECEBEU:[DATA:CODIGO_PRONTO]"
 
