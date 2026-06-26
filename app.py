@@ -2,7 +2,7 @@
 import streamlit as st
 import sys
 import os
-import requests
+from openai import OpenAI
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
@@ -14,7 +14,7 @@ from agents.ia03_critico import AgenteCritico
 from agents.ia04_supervisor import AgenteSupervisor
 from agents.ia05_auditor import AgenteAuditor
 
-# Configuração de Tela Premium
+# Configuração de Tela Premium do Co-Piloto
 st.set_page_config(page_title="Synapse 12", page_icon="💡", layout="centered")
 
 st.title("💡 Synapse 12")
@@ -47,7 +47,7 @@ st.markdown("---")
 st.write("### 🎬 Iniciar Projeto")
 tarefa_input = st.text_area(
     "O que você precisa realizar hoje?", 
-    placeholder="Ex: Quero automatizar o envio de e-mails para meus leads imobiliários...",
+    placeholder="Ex: Quero automatizar o envio de e-mails para meus leads imobiliários ou criar um relatório de vendas...",
     height=150
 )
 
@@ -58,34 +58,31 @@ if st.button("Dar vida ao projeto", type="primary"):
         with st.spinner("Conectando nossa rede de especialistas..."):
             status_placeholder.info("🧠 Entendendo seus requisitos e validando o escopo...")
             
-            # 🔥 CHAMADA DIRETA VIA HTTP POST BLINDADA CONTRA ERRO 405
             groq_key = os.getenv("GROQ_API_KEY")
             
             if groq_key:
                 try:
-                    url = "https://groq.com"
-                    headers = {
-                        "Authorization": f"Bearer {groq_key}",
-                        "Content-Type": "application/json"
-                    }
-                    data = {
-                        "model": "deepseek-r1-distill-llama-70b",
-                        "messages": [
-                            {"role": "system", "content": "Você é a inteligência central do Synapse 12. Gere uma solução em código limpo, estruturado e completo para o problema do usuário. Sem rodeios textuais."},
+                    # 🚀 CLIENTE OFICIAL COMPATÍVEL DA GROQ (ZERA O ERRO 405)
+                    client = OpenAI(
+                        base_url="https://api.groq.com/openai/v1",
+                        api_key=groq_key
+                    )
+                    
+                    # Dispara a chamada usando o SDK padronizado
+                    response = client.chat.completions.create(
+                        model="deepseek-r1-distill-llama-70b",
+                        messages=[
+                            {"role": "system", "content": "Você é o arquiteto central do Synapse 24. Crie uma estrutura detalhada, prática e funcional para o projeto solicitado pelo usuário, sem introduções longas."},
                             {"role": "user", "content": tarefa_input}
                         ],
-                        "temperature": 0.3
-                    }
-                    response = requests.post(url, headers=headers, json=data, timeout=20)
+                        temperature=0.3
+                    )
                     
-                    if response.status_code == 200:
-                        resultado = response.json()["choices"]["message"]["content"]
-                    else:
-                        resultado = f"Erro na API da Groq: Código {response.status_code}. Certifique-se de que colou a chave certa nos Secrets."
+                    resultado = response.choices.message.content
                 except Exception as e:
-                    resultado = f"Falha de conexão: {e}"
+                    resultado = f"Erro na comunicação com a API: {e}. Certifique-se de que a chave nos Secrets está correta."
             else:
-                resultado = "[MOCK] Chave GROQ_API_KEY não localizada nas configurações do Streamlit."
+                resultado = "Chave de acesso GROQ_API_KEY não localizada nas configurações internas."
             
             status_placeholder.empty()
             
@@ -98,5 +95,5 @@ if st.button("Dar vida ao projeto", type="primary"):
 
 st.markdown("---")
 with st.expander("⚙️ Ver detalhes técnicos do processo (Logs Avançados)"):
-    st.caption("Modo de Operação Poliglota Ativo • Synapse 12 REST Engine")
+    st.caption("Modo de Operação Poliglota Ativo • Synapse 12 Engine Oficial")
     
