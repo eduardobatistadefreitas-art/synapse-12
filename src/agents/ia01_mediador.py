@@ -4,40 +4,38 @@ from utils.logger import SynapseLogger
 
 class AgenteMediador(BaseAgent):
     """
-    IA01 - MEDIADOR: O porteiro do Synapse 12.
-    Responsável pela triagem, validação de escopo e entrevista estruturada.
+    IA01 - MEDIADOR: O co-piloto de triagem.
+    Garante que a ideia do usuário seja compreendida e estruturada.
     """
     def __init__(self, agent_id, role, bus, user_plan="BASIC"):
         super().__init__(agent_id, role, bus)
         self.user_plan = user_plan
         self.log = SynapseLogger()
-        self.log.info(f"Mediador {agent_id} iniciado no plano {user_plan}")
+        self.model = "gemma2-9b-it" # Define o modelo da Groq
 
     def handle_logic(self, tag, payload):
-        # Garante que o payload não seja None para não quebrar as strings
-        payload_seguro = payload if payload is not None else {}
+        # Desembrulha o envelope síncrono do barramento
+        corpo = payload.get("body") if isinstance(payload, dict) else payload
+        if isinstance(corpo, dict):
+            tarefa_usuario = corpo.get("tarefa", "")
+        else:
+            tarefa_usuario = str(corpo)
 
-        # 1. Validação de Escopo (Gatekeeper)
-        if not self._validar_escopo(payload_seguro):
-            return "[ERR:ESCOPO_NAO_PERMITIDO] Tarefa excede o limite do seu plano."
+        self.log.info(f"Mediador analisando projeto: {tarefa_usuario[:30]}...")
 
-        # 2. Entrevista Estruturada (Máquina de Estados)
-        if self._checklist_completo(payload_seguro):
-            self.log.info("Checklist completo. Enviando para Executor (IA02).")
-            return self.send_to("IA02", "[CMD:INICIAR_ESQUELETO]", payload_seguro)
+        # 🎭 CHAMADA REAL DE IA: O Mediador usa o modelo Gemma2 para criar o briefing estruturado
+        prompt_sistema = (
+            "Você é o IA01 - Mediador do ecossistema Synapse 12. "
+            "Sua tarefa é ler a ideia de automação do usuário e criar um briefing técnico super enxuto "
+            "com 3 requisitos claros para o engenheiro de software executar. Seja direto e prático."
+        )
         
-        return "[IA01] Por favor, forneça os dados conforme o checklist de 5 passos."
-
-    def _validar_escopo(self, payload):
-        """Bloqueia projetos fora do escopo do plano gratuito (Isca)."""
-        if self.user_plan == "BASIC":
-            complexidade_palavras = ["banco de dados", "servidor", "agente autônomo", "api complexa"]
-            payload_str = str(payload).lower()
-            if any(p in payload_str for p in complexidade_palavras):
-                return False
-        return True
-
-    def _checklist_completo(self, payload):
-        """Verifica se as 5 perguntas de ouro foram respondidas."""
-        return "conclusao" in str(payload).lower()
-      
+        prompt_usuario = f"Ideia do cliente: {tarefa_usuario}"
+        
+        # Faz a chamada real e gratuita via API REST da Groq
+        briefing_estruturado = self.chamar_ia(prompt_sistema, prompt_usuario)
+        
+        # Envia o briefing real direto para o Executor (IA02) continuar a cadeia
+        self.log.info("Briefing estruturado com sucesso. Acionando Executor...")
+        return self.send_to("IA02", "[CMD:EXECUTAR_PROJETO]", briefing_estruturado)
+        
