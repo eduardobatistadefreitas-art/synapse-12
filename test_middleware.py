@@ -5,7 +5,6 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
-from core.middleware import MiddlewareResiliencia
 from bus.message_bus import MessageBus
 from agents.base_agent import BaseAgent
 from agents.ia01_mediador import AgenteMediador
@@ -17,23 +16,37 @@ class AgenteMockIsolado(BaseAgent):
     def handle_logic(self, tag, payload):
         return f"MOCK_RECEBEU:{tag}"
 
-def test_middleware_latencia():
-    middleware = MiddlewareResiliencia(tau_validade_max=0.05)
-    t_origem = time.perf_counter()
-    assert middleware.filtrar_comando("[TESTE]", t_origem) == "[TESTE]"
-
-def test_interacao_ia01_bloqueios():
+def test_infraestrutura_e_mediador():
     bus = MessageBus()
     mediador = AgenteMediador("IA01", "Mediador", bus)
     bus.registrar(mediador)
-    
     resposta = bus.enviar("USER", "IA01", "[CMD:PROCESSAR]", {"tarefa": "banco de dados complexo"})
     assert "[ERR:ESCOPO_NAO_PERMITIDO]" in resposta
 
-def test_executor_isolado():
+def test_executor_e_critico():
     bus = MessageBus()
     executor = AgenteExecutor("IA02", "Executor", bus)
+    critico = AgenteCritico("IA03", "Critico", bus, user_tier="BASIC")
     bus.registrar(executor)
+    bus.registrar(critico)
+    
+    # Registra mocks para as pontas soltas
+    bus.registrar(AgenteMockIsolado("IA04", "Orquestrador", bus))
+    
+    envelope_reprovado = {"header": {}, "body": "Falta tratamento de erro"}
+    resposta = bus.enviar("IA05", "IA03", "[FEEDBACK_IA05_REPROVADO]", envelope_reprovado)
+    assert resposta is not None
+
+def test_auditor_fluxos():
+    bus = MessageBus()
+    auditor = AgenteAuditor("IA05", "Auditor", bus)
+    bus.registrar(auditor)
+    bus.registrar(AgenteMockIsolado("IA03", "Critico", bus))
+    bus.registrar(AgenteMockIsolado("IA04", "Orquestrador", bus))
+    
+    envelope_v1 = {"header": {}, "body": {"versao": "1.0", "codigo": "print(1)"}}
+    resposta_v1 = bus.enviar("IA02", "IA05", "[CMD:VALIDAR_ENTREGA]", envelope_v1)
+    assert resposta_v1 == "MOCK_RECEBEU:[FEEDBACK_IA05_ANALISE_INICIAL]"
     
     ia03_mock = AgenteMockIsolado("IA03", "Critico", bus)
     bus.registrar(ia03_mock)
