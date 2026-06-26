@@ -7,10 +7,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout codigo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configurar Python
-        uses: actions/configure-pages@v3 # Usando action nativa padrão
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
@@ -19,4 +19,3 @@ jobs:
 
       - name: Executar Testes Automatizados
         run: pytest test_middleware.py
-        
