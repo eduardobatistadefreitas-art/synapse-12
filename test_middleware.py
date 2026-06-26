@@ -1,4 +1,4 @@
-# test_synapse.py
+# test_middleware.py
 import time
 import sys
 import os
@@ -8,6 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 from core.middleware import MiddlewareResiliencia
 from bus.message_bus import MessageBus
+from utils.logger import SynapseLogger
 
 # Criamos um agente falso (Mock) apenas para validar o funcionamento do barramento
 class AgenteMock:
@@ -25,7 +26,6 @@ def test_barramento_roteamento_sucesso():
     bus = MessageBus()
     agente = AgenteMock("IA01")
     
-    # Testa se o registro e o envio ocorrem perfeitamente
     bus.registrar(agente)
     resposta = bus.enviar("USER", "IA01", "[CMD:INICIAR]", {"data": 123})
     assert resposta == "Sucesso:[CMD:INICIAR]"
@@ -34,3 +34,11 @@ def test_barramento_agente_inexistente():
     bus = MessageBus()
     resposta = bus.enviar("USER", "IA_FANTASMA", "[CMD:AÇÃO]", {})
     assert resposta == "[ERR:DESTINO_NAO_ENCONTRADO]"
+
+def test_logger_funcionamento(capsys):
+    logger = SynapseLogger()
+    logger.info("Teste de log do sistema")
+    
+    # Captura o print na tela para checar se o Logger funcionou
+    captured = capsys.readouterr()
+    assert "[INFO] Teste de log do sistema" in captured.out
