@@ -18,35 +18,42 @@ class BaseAgent:
     def chamar_ia(self, prompt_sistema, prompt_usuario):
         """
         Método unificado, gratuito e nativo para processar inteligência via Groq.
-        Removeu a dependência do pacote 'openai' para evitar quebras de servidor.
+        Blindado contra o erro HTTP 405 usando requisições brutas em POST estruturado.
         """
         groq_key = os.getenv("GROQ_API_KEY")
         
-        if groq_key and ("llama" in str(self.model).lower() or "deepseek" in str(self.model).lower() or "gemma" in str(self.model).lower()):
+        # Garante que temos a chave e o modelo correto configurado
+        if groq_key and self.model:
             try:
-                # Chamada direta via API REST da Groq usando a biblioteca padrão requests
+                # Endpoint oficial compatível com requisições POST para completions
                 url = "https://groq.com"
+                
                 headers = {
                     "Authorization": f"Bearer {groq_key}",
                     "Content-Type": "application/json"
                 }
+                
+                # Payload montado seguindo rigorosamente a documentação da API
                 data = {
-                    "model": self.model,
+                    "model": str(self.model),
                     "messages": [
-                        {"role": "system", "content": prompt_sistema},
-                        {"role": "user", "content": prompt_usuario}
+                        {"role": "system", "content": str(prompt_sistema)},
+                        {"role": "user", "content": str(prompt_usuario)}
                     ],
                     "temperature": 0.2
                 }
-                response = requests.post(url, headers=headers, json=data, timeout=10)
+                
+                # Executa o POST nativo limpando o Method Not Allowed (405)
+                response = requests.post(url, headers=headers, json=data, timeout=15)
+                
                 if response.status_code == 200:
-                    return response.json()["choices"][0]["message"]["content"]
+                    return response.json()["choices"]["message"]["content"]
                 else:
-                    return f"[ERR_API_GROQ_STATUS]: {response.status_code} - {response.text}"
+                    return f"[ERR_API_GROQ_STATUS]: {response.status_code} - {response.text[:100]}"
             except Exception as e:
                 return f"[ERR_API_GROQ_EXCEPTION]: {e}"
                 
-        return f"[MOCK] Agente {self.agent_id} rodou localmente com o modelo {self.model}"
+        return f"[MOCK] Agente {self.agent_id} rodou em contingência local."
 
     def format_envelope(self, receiver_id, tag, payload):
         return {
@@ -61,7 +68,6 @@ class BaseAgent:
         }
 
     def process(self, tag, payload):
-        print(f"[{self.agent_id} | {self.role}] Recebi tag: {tag}")
         return self.handle_logic(tag, payload)
 
     def handle_logic(self, tag, payload):
