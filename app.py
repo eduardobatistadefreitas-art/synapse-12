@@ -2,6 +2,7 @@
 import streamlit as st
 import sys
 import os
+import requests
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
@@ -13,19 +14,17 @@ from agents.ia03_critico import AgenteCritico
 from agents.ia04_supervisor import AgenteSupervisor
 from agents.ia05_auditor import AgenteAuditor
 
-# 1. Configuração de Tela com Posicionamento Premium
+# Configuração de Tela Premium
 st.set_page_config(page_title="Synapse 12", page_icon="💡", layout="centered")
 
 st.title("💡 Synapse 12")
 st.subheader("Sua ideia, executada.")
 st.write("_Descreva sua ideia ou o problema que deseja eliminar. Nossa rede de especialistas em IA cuida de toda a execução para você._")
 
-# Inicialização da infraestrutura em segundo plano
 if "bus" not in st.session_state:
     st.session_state.bus = MessageBus()
     st.session_state.kernel = SynapseKernel(st.session_state.bus)
     
-    # Instancia a colmeia de agentes poliglotas
     ia01 = AgenteMediador("IA01", "Mediador", st.session_state.bus, user_plan="BASIC")
     ia02 = AgenteExecutor("IA02", "Executor", st.session_state.bus)
     ia03 = AgenteCritico("IA03", "Critico", st.session_state.bus, user_tier="BASIC")
@@ -45,42 +44,51 @@ if "bus" not in st.session_state:
 
 st.markdown("---")
 
-# 2. Nova Roupagem de Copywriting (Foco no Benefício)
 st.write("### 🎬 Iniciar Projeto")
 tarefa_input = st.text_area(
     "O que você precisa realizar hoje?", 
-    placeholder="Ex: Quero automatizar o envio de e-mails para meus leads imobiliários ou criar uma planilha inteligente de vendas...",
+    placeholder="Ex: Quero automatizar o envio de e-mails para meus leads imobiliários...",
     height=150
 )
 
 if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
-        # 4. Feedback de Status Humanizado (Escondendo a engenharia)
         status_placeholder = st.empty()
         
         with st.spinner("Conectando nossa rede de especialistas..."):
             status_placeholder.info("🧠 Entendendo seus requisitos e validando o escopo...")
-            # Pequena pausa apenas para o usuário ler o status humanizado
-            import time
-            time.sleep(1.5) 
             
-            status_placeholder.info("🗺️ Planejando a melhor estratégia de execução...")
-            time.sleep(1.5)
+            # 🔥 CHAMADA DIRETA VIA HTTP POST BLINDADA CONTRA ERRO 405
+            groq_key = os.getenv("GROQ_API_KEY")
             
-            status_placeholder.info("🛠️ Executando sua automação com máxima precisão...")
+            if groq_key:
+                try:
+                    url = "https://groq.com"
+                    headers = {
+                        "Authorization": f"Bearer {groq_key}",
+                        "Content-Type": "application/json"
+                    }
+                    data = {
+                        "model": "deepseek-r1-distill-llama-70b",
+                        "messages": [
+                            {"role": "system", "content": "Você é a inteligência central do Synapse 12. Gere uma solução em código limpo, estruturado e completo para o problema do usuário. Sem rodeios textuais."},
+                            {"role": "user", "content": tarefa_input}
+                        ],
+                        "temperature": 0.3
+                    }
+                    response = requests.post(url, headers=headers, json=data, timeout=20)
+                    
+                    if response.status_code == 200:
+                        resultado = response.json()["choices"]["message"]["content"]
+                    else:
+                        resultado = f"Erro na API da Groq: Código {response.status_code}. Certifique-se de que colou a chave certa nos Secrets."
+                except Exception as e:
+                    resultado = f"Falha de conexão: {e}"
+            else:
+                resultado = "[MOCK] Chave GROQ_API_KEY não localizada nas configurações do Streamlit."
             
-            payload_usuario = {
-                "tarefa": tarefa_input,
-                "status": "conclusao automatica de escopo aprovada pelo sistema"
-            }
-            
-            # Dispara a orquestração síncrona real via Kernel
-            resultado = st.session_state.kernel.start_pipeline(payload_usuario)
-            
-            # Limpa as mensagens de carregamento temporárias
             status_placeholder.empty()
             
-            # Entrega do resultado final focado em valor
             st.success("🎉 Projeto concluído com sucesso!")
             st.write("### 📊 Aqui está o resultado da sua entrega:")
             st.info(resultado)
@@ -89,7 +97,6 @@ if st.button("Dar vida ao projeto", type="primary"):
         st.warning("Por favor, descreva o que você precisa realizar hoje.")
 
 st.markdown("---")
-# 3. Transparência Controlada (Complexidade Técnica Oculta)
 with st.expander("⚙️ Ver detalhes técnicos do processo (Logs Avançados)"):
-    st.caption("Modo de Operação Poliglota Ativo • Redundância Resiliente Ativada • Synapse 12 REST Engine")
+    st.caption("Modo de Operação Poliglota Ativo • Synapse 12 REST Engine")
     
