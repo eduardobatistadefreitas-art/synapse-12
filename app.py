@@ -1,11 +1,18 @@
 # app.py
-import streamlit as st
-import sys
 import os
-from openai import OpenAI
+import sys
 
+# 💉 VACINA DEFINITIVA: Força a instalação da biblioteca antes de qualquer import técnico
+try:
+    from openai import OpenAI
+except ImportError:
+    os.system("pip install openai")
+    from openai import OpenAI
+
+# Garante que o Streamlit encontre a pasta 'src' no servidor em nuvem
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
+import streamlit as st
 from bus.message_bus import MessageBus
 from core.kernel import SynapseKernel
 from agents.ia01_mediador import AgenteMediador
@@ -62,13 +69,12 @@ if st.button("Dar vida ao projeto", type="primary"):
             
             if groq_key:
                 try:
-                    # 🚀 CLIENTE OFICIAL COMPATÍVEL DA GROQ (ZERA O ERRO 405)
+                    # Inicializa usando o SDK oficial para evitar o erro 405
                     client = OpenAI(
-                        base_url="https://api.groq.com/openai/v1",
+                        base_url="https://groq.com",
                         api_key=groq_key
                     )
                     
-                    # Dispara a chamada usando o SDK padronizado
                     response = client.chat.completions.create(
                         model="deepseek-r1-distill-llama-70b",
                         messages=[
