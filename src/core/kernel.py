@@ -14,12 +14,10 @@ class SynapseKernel:
     def start_pipeline(self, user_input):
         """
         Inicia a jornada da informação no sistema.
-        Todo input entra aqui e é encapsulado para os agentes.
+        Garante que a resposta final dos agentes retorne até o usuário.
         """
         self.log.info("SISTEMA ATIVADO: Recebendo entrada do usuário.")
         
-        # O kernel cria o 'envelope' inicial (título e endereço)
-        # O Mediador (IA01) é sempre o primeiro a processar
         envelope = {
             "header": {
                 "from": "KERNEL", 
@@ -30,11 +28,12 @@ class SynapseKernel:
             "body": user_input
         }
         
-        # Entrega o envelope ao barramento (Bus) usando o método correto 'enviar'
-        resposta = self.bus.enviar("KERNEL", "IA01", "[CMD:INICIAR]", envelope)
-        self.log.info("Comando entregue ao Mediador (IA01).")
-        return resposta
+        # O 'return' garante que o resultado final gerado pelo Executor (IA02) 
+        # seja devolvido para o Kernel, que por sua vez devolve para a tela do app.py
+        resposta_final = self.bus.enviar("KERNEL", "IA01", "[CMD:INICIAR]", envelope)
+        self.log.info("Orquestração concluída com sucesso.")
+        return resposta_final
 
     def signal_shutdown(self):
         self.log.info("SISTEMA DESLIGANDO: Finalizando processos de agentes.")
-      
+        
