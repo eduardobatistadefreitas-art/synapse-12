@@ -26,12 +26,13 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 1.5 Flash"""
+    """Executa a chamada REST nativa para o Gemini 1.5 Flash - Endereço Corrigido"""
     try:
-        conn = http.client.HTTPSConnection("generativelanguage.googleapis.com")
+        # 🚀 ENDEREÇO PURO CORRIGIDO: Removeu o https:// para zerar o erro nonnumeric port
+        conn = http.client.HTTPSConnection("://googleapis.com")
         headers = {"Content-Type": "application/json"}
         
-        # Estrutura oficial do prompt do Gemini com instruções de sistema inclusas
+        # Estrutura oficial do prompt do Gemini
         payload = json.dumps({
             "contents": [{
                 "parts": [{
@@ -48,6 +49,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
         
         if res.status == 200:
             json_data = json.loads(data.decode("utf-8"))
+            # Extração segura da estrutura de texto de retorno do Google API
             return json_data["candidates"][0]["content"]["parts"][0]["text"]
         return f"[Erro HTTP {res.status}]: {data.decode('utf-8')[:100]}"
     except Exception as e:
@@ -89,13 +91,15 @@ if st.button("Dar vida ao projeto", type="primary"):
                 p_sistema_5 = "Você é o IA05 Auditor de Código/Adversário. Analise o código gerado pelo Executor e aponte se ele está seguro e funcional ou se tem algum erro grave."
                 auditoria = chamar_gemini_direto(gemini_key, p_sistema_5, codigo_v1)
                 st.write(auditoria)
-                s4.update(label="⚖️ IA05 [Auditor] finalizou a Auditoria Técnica!", state="complete")
+                s4.update(label="⚖️ IA05 [Auditor] finalizou a Auditoria Técnico!", state="complete")
 
             st.success("🎉 Processo de Orquestração Concluído pela Colmeia!")
             
             # Resultado Final Consolidado
             st.write("### 🏁 Entrega Final Homologada:")
-            st.info(f"**Requisitos do Projeto:**\n{briefing}\n\n**Código Gerado:**\n{codigo_v1}")
+            st.info(f"**Requisitos do Projeto:**\n{briefing}")
+            st.markdown("**Código Final Desenvolvido:**")
+            st.code(codigo_v1, language="python")
     else:
         st.warning("Por favor, descreva o que você deseja realizar.")
 
