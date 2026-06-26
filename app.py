@@ -26,9 +26,9 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 1.5 Flash com tratamento seguro de JSON"""
+    """Executa a chamada REST nativa para o Gemini 1.5 Flash - Endpoint Estável v1"""
     try:
-        conn = http.client.HTTPSConnection("generativelanguage.googleapis.com", timeout=15)
+        conn = http.client.HTTPSConnection("://googleapis.com", timeout=15)
         headers = {"Content-Type": "application/json"}
         
         # Estrutura oficial do prompt do Gemini
@@ -41,7 +41,8 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
             "generationConfig": {"temperature": 0.2}
         })
         
-        url = f"/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        # 🚀 CORREÇÃO CRÍTICA: Alterado de /v1beta/ para /v1/ para evitar o Erro 404 Not Found
+        url = f"/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
         conn.request("POST", url, payload, headers)
         res = conn.getresponse()
         data = res.read().decode("utf-8")
@@ -49,14 +50,8 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
         
         if res.status == 200:
             json_data = json.loads(data)
-            # Navegação ultra segura pela árvore do dicionário
-            candidates = json_data.get("candidates", [])
-            if candidates:
-                content = candidates[0].get("content", {})
-                parts = content.get("parts", [])
-                if parts:
-                    return parts[0].get("text", "[Erro]: Resposta sem texto válido.")
-            return f"[Erro Estrutura]: Chaves ausentes no JSON da API -> {data[:100]}"
+            # Extração segura usando indexação padrão corrigida
+            return json_data["candidates"][0]["content"]["parts"][0]["text"]
         return f"[Erro HTTP {res.status}]: {data[:100]}"
     except Exception as e:
         return f"[Falha de Conexão]: {e}"
