@@ -28,7 +28,7 @@ tarefa_input = st.text_area(
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
     """Executa a chamada REST nativa para o Gemini 1.5 Flash"""
     try:
-        conn = http.client.HTTPSConnection("://googleapis.com")
+        conn = http.client.HTTPSConnection("generativelanguage.googleapis.com")
         headers = {"Content-Type": "application/json"}
         
         # Estrutura oficial do prompt do Gemini com instruções de sistema inclusas
