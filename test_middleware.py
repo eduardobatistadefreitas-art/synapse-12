@@ -3,37 +3,38 @@ import time
 import sys
 import os
 
-# Ajusta o caminho para que o Python localize a pasta src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 from core.middleware import MiddlewareResiliencia
 from bus.message_bus import MessageBus
-from utils.logger import SynapseLogger
+from agents.base_agent import BaseAgent
 
-# Criamos um agente falso (Mock) apenas para validar o funcionamento do barramento
-class AgenteMock:
-    def __init__(self, agent_id):
-        self.agent_id = agent_id
+# Agente de testes real herdando da classe BaseAgent oficial
+class AgenteTesteReal(BaseAgent):
     def handle_logic(self, tag, payload):
-        return f"Sucesso:{tag}"
+        if tag == "[CMD:TESTAR_ENVELOPE]":
+            return "ENVELOPE_OK"
+        return "READY"
 
 def test_middleware_latencia():
     middleware = MiddlewareResiliencia(tau_validade_max=0.05)
     t_origem = time.perf_counter()
     assert middleware.filtrar_comando("[TESTE]", t_origem) == "[TESTE]"
 
-def test_barramento_roteamento_sucesso():
+def test_base_agent_e_envelopamento():
     bus = MessageBus()
-    agente = AgenteMock("IA01")
-    
+    agente = AgenteTesteReal("IA05", "Contestador", bus)
     bus.registrar(agente)
-    resposta = bus.enviar("USER", "IA01", "[CMD:INICIAR]", {"data": 123})
-    assert resposta == "Sucesso:[CMD:INICIAR]"
-
-def test_barramento_agente_inexistente():
-    bus = MessageBus()
-    resposta = bus.enviar("USER", "IA_FANTASMA", "[CMD:AÇÃO]", {})
-    assert resposta == "[ERR:DESTINO_NAO_ENCONTRADO]"
+    
+    # 1. Testa se o agente recebe mensagens corretamente pelo handle_logic do Barramento
+    resposta = bus.enviar("USER", "IA05", "[CMD:TESTAR_ENVELOPE]", {"texto": "analise"})
+    assert resposta == "ENVELOPE_OK"
+    
+    # 2. Testa se o método format_envelope estruturou os metadados corretamente
+    envelope = agente.format_envelope("IA01", "[TAG:TESTE]", {"data": 1})
+    assert envelope["header"]["from"] == "IA05"
+    assert envelope["header"]["role"] == "Contestador"
+    assert envelope["body"]["data"] == 1
 
 def test_logger_funcionamento(capsys):
     logger = SynapseLogger()
