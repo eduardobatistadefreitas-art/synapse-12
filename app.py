@@ -2,10 +2,14 @@
 import streamlit as st
 import sys
 import os
-from rest_client import orquestrar_chamada_rest
 
+# 🚀 CORREÇÃO CRÍTICA: Ensina o caminho da pasta 'src' PRIMEIRO para evitar o erro de importação
 PATH_SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), 'src'))
-sys.path.append(PATH_SRC)
+if PATH_SRC not in sys.path:
+    sys.path.append(PATH_SRC)
+
+# Agora o interpretador do Streamlit encontra o arquivo perfeitamente
+from rest_client import orquestrar_chamada_rest
 
 st.set_page_config(page_title="Synapse 12 OS", page_icon="🧠", layout="centered")
 st.title("🧠 Synapse 12 OS")
@@ -33,7 +37,7 @@ if st.button("Dar vida ao projeto", type="primary"):
         ctx_generator = carregar_contexto_extensao("ia02_executor_content_generator.py")
         
         with st.status("🧠 IA01 [Mediador] analisando e montando briefing técnico...", expanded=True) as s1:
-            p_sistema_1 = "Você é o IA01 Mediador. Escreva um briefing enxuto com 3 requisitos baseados no objetivo final do usuário."
+            p_sistema_1 = "Você é o IA01 Mediador. Escreva um briefing enxuto com 3 requisitos baseados no objective final do usuário."
             briefing = orquestrar_chamada_rest(p_sistema_1, tarefa_input)
             st.write(briefing)
             s1.update(label="🧠 IA01 [Mediador] concluiu o Briefing!", state="complete")
