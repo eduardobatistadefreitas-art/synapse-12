@@ -49,7 +49,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
         })
         
         # Mantendo o modelo robusto ativo gemini-2.5-flash
-        url = f"/v1/models/gemini-2.5-flash:generateContent?key={api_key_limpa}"
+        url = f"/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
         conn.request("POST", url, payload, headers)
         
         res = conn.getresponse()
