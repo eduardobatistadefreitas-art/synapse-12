@@ -4,7 +4,7 @@ import sys
 import os
 import json
 
-# 🚀 CONFIGURAÇÃO DA PASTA FONTE NO TOPO
+# CONFIGURAÇÃO DA PASTA FONTE NO TOPO
 PATH_SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), 'src'))
 if PATH_SRC not in sys.path:
     sys.path.append(PATH_SRC)
@@ -78,7 +78,7 @@ if st.button("Dar vida ao projeto", type="primary"):
             loop_ativo, rodada, max_rodadas = True, 1, 2
             while loop_ativo and rodada <= max_rodadas and not codigo_v1.startswith("RAIZ_ERRO:") and "[Erro" not in codigo_v1:
                 st.markdown(f"#### 🔄 Rodada {rodada} de Ajuste")
-                with St.status(f"🗺️ Rodada {rodada}: IA03 [Crítico] analisando entrega...", expanded=True) as s3:
+                with st.status(f"🗺️ Rodada {rodada}: IA03 [Crítico] analisando entrega...", expanded=True) as s3:
                     critica = orquestrar_chamada_rest(p_sistema_3, codigo_v1)
                     if critica.startswith("RAIZ_ERRO:"):
                         s3.update(label="💥 Falha no Crítico!", state="error")
@@ -89,7 +89,7 @@ if st.button("Dar vida ao projeto", type="primary"):
                         s3.update(label=f"🗺️ Rodada {rodada}: Análise do Crítico Emitida!", state="complete")
                 
                 if not critica.startswith("RAIZ_ERRO:") and loop_ativo:
-                    with St.status(f"⚖️ Rodada {rodada}: IA04 [Supervisor] julgando...", expanded=True) as s_super:
+                    with st.status(f"⚖️ Rodada {rodada}: IA04 [Supervisor] julgando...", expanded=True) as s_super:
                         contexto_supervisao = f"Briefing:\n{briefing}\n\nEntrega:\n{codigo_v1}\n\nCrítica:\n{critica}"
                         veredito = orquestrar_chamada_rest(p_sistema_4, contexto_supervisao).strip().upper()
                         
@@ -104,7 +104,7 @@ if st.button("Dar vida ao projeto", type="primary"):
                                 loop_ativo = False
                             else:
                                 s_super.update(label=f"⚠️ Rodada {rodada}: Reprovado! Refatorando.", state="complete")
-                                with St.status(f"🛠️ Rodada {rodada}: IA02 corrigindo...", expanded=True) as s_exec_fix:
+                                with st.status(f"🛠️ Rodada {rodada}: IA02 corrigindo...", expanded=True) as s_exec_fix:
                                     prompt_reajuste = f"Briefing:\n{briefing}\n\nEntrega:\n{codigo_v1}\n\nErros:\n{critica}"
                                     codigo_v1 = orquestrar_chamada_rest(p_sistema_2, prompt_reajuste)
                                     if codigo_v1.startswith("RAIZ_ERRO:"):
@@ -116,7 +116,7 @@ if st.button("Dar vida ao projeto", type="primary"):
                                 rodada += 1
 
             if not codigo_v1.startswith("RAIZ_ERRO:") and "[Erro" not in codigo_v1:
-                with St.status("⚖️ IA05 [Auditor] revisando qualidade final...", expanded=True) as s4:
+                with st.status("⚖️ IA05 [Auditor] revisando qualidade final...", expanded=True) as s4:
                     p_sistema_5 = "Você é o IA05 Auditor. Analise a entrega final e aponte se ela está segura e coesa."
                     auditoria = orquestrar_chamada_rest(p_sistema_5, codigo_v1)
                     if auditoria.startswith("RAIZ_ERRO:"):
@@ -135,6 +135,6 @@ if st.button("Dar vida ao projeto", type="primary"):
         st.warning("Por favor, descreva o que deseja realizar.")
 
 st.markdown("---")
-with St.expander("⚙️ Ver Arquitetura"): 
+with st.expander("⚙️ Ver Arquitetura"): 
     st.caption("Synapse 24 OS Engine • Redundância Quádrupla Ativa • Custo Zero")
     
