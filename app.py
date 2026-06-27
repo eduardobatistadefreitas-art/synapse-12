@@ -39,74 +39,87 @@ def carregar_contexto_extensao(nome_arquivo):
     return ""
 
 def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
-    """Orquestrador resiliente que varre todas as chaves disponíveis em cascata (Failover Real)"""
+    """Orquestrador resiliente com Failover Real e correção estrita de sintaxe"""
     palavras_bloqueadas = ["act as", "atue como", "ignore as regras", "system prompt"]
     if any(palavra in prompt_usuario.lower() for palavra in palavras_bloqueadas):
         return "[Erro de Segurança]: Comando inválido."
 
-    # Mapeamento dinâmico de todos os seus provedores ativos
+    # Mapeamento dinâmico sem funções lambda complexas que quebram o interpretador
     provedores = [
         {
             "nome": "NVIDIA",
-            "key": st.secrets.get("NVIDIA_API_KEY") or os.getenv("NVIDIA_API_KEY"),
-            "host": "://nvidia.com",
+            "key": st.secrets.get("NVIDIA_API_KEY"),
+            "host": "integrate.api.nvidia.com",
             "url": "/v1/chat/completions",
-            "payload_func": lambda s, u: {"model": "meta/llama-3.3-70b-instruct", "messages": [{"role": "system", "content": s}, {"role": "user", "content": u}], "temperature": 0.3},
-            "headers_func": lambda k: {"Content-Type": "application/json", "Authorization": f"Bearer {k.strip()}"},
-            "parse_func": lambda d: json.loads(d)["choices"]["message"]["content"]
+            "payload": {"model": "meta/llama-3.3-70b-instruct", "messages": [{"role": "system", "content": prompt_sistema}, {"role": "user", "content": prompt_usuario}], "temperature": 0.3, "max_tokens": 1024},
+            "is_openai_format": True
         },
         {
             "nome": "OpenRouter",
-            "key": st.secrets.get("OPENROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY"),
+            "key": st.secrets.get("OPENROUTER_API_KEY"),
             "host": "openrouter.ai",
             "url": "/api/v1/chat/completions",
-            "payload_func": lambda s, u: {"model": "meta-llama/llama-3.3-70b-instruct:free", "messages": [{"role": "system", "content": s}, {"role": "user", "content": u}], "temperature": 0.3},
-            "headers_func": lambda k: {"Content-Type": "application/json", "Authorization": f"Bearer {k.strip()}"},
-            "parse_func": lambda d: json.loads(d)["choices"]["message"]["content"]
+            "payload": {"model": "meta-llama/llama-3.3-70b-instruct:free", "messages": [{"role": "system", "content": prompt_sistema}, {"role": "user", "content": prompt_usuario}], "temperature": 0.3},
+            "is_openai_format": True
         },
         {
             "nome": "Groq",
-            "key": st.secrets.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY"),
+            "key": st.secrets.get("GROQ_API_KEY"),
             "host": "://groq.com",
             "url": "/openai/v1/chat/completions",
-            "payload_func": lambda s, u: {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": s}, {"role": "user", "content": u}], "temperature": 0.3},
-            "headers_func": lambda k: {"Content-Type": "application/json", "Authorization": f"Bearer {k.strip()}"},
-            "parse_func": lambda d: json.loads(d)["choices"]["message"]["content"]
+            "payload": {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": prompt_sistema}, {"role": "user", "content": prompt_usuario}], "temperature": 0.3},
+            "is_openai_format": True
         },
         {
             "nome": "Gemini",
-            "key": str(st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")).split(",")[0].strip(),
-            "host": "://googleapis.com",
+            "key": st.secrets.get("GEMINI_API_KEY"),
+            "host": "generativelanguage.googleapis.com",
             "url": "/v1/models/gemini-2.0-flash:generateContent",
-            "payload_func": lambda s, u: {"contents": [{"parts": [{"text": f"INSTRUÇÃO: {s}\n\nENTRADA: {u}"}]}], "generationConfig": {"temperature": 0.3}},
-            "headers_func": lambda k: {"Content-Type": "application/json", "x-goog-api-key": k.replace("https://", "").replace("http://", "").replace("//", "")},
-            "parse_func": lambda d: json.loads(d)["candidates"]["content"]["parts"]["text"]
+            "payload": {"contents": [{"parts": [{"text": f"INSTRUÇÃO: {prompt_sistema}\n\nENTRADA: {prompt_usuario}"}]}], "generationConfig": {"temperature": 0.3}},
+            "is_openai_format": False
         }
     ]
 
-    # Varre a lista em cascata. Se um falhar, o próximo assume na hora
     for prov in provedores:
-        if not prov["key"] or "não localizada" in str(prov["key"]).lower() or str(prov["key"]) == "None" or not str(prov["key"]).strip():
+        # Tratamento seguro de strings das chaves
+        chave_bruta = str(prov["key"]).strip()
+        if not prov["key"] or "não localizada" in chave_bruta.lower() or chave_bruta == "None" or not chave_bruta:
             continue
+            
+        # Pega a primeira chave se for o formato de lista do Gemini
+        if prov["nome"] == "Gemini" and "," in chave_bruta:
+            chave_bruta = [k.strip() for k in chave_bruta.split(",") if k.strip()][0]
             
         try:
             conn = http.client.HTTPSConnection(prov["host"], timeout=45)
-            headers = prov["headers_func"](prov["key"])
-            headers["Connection"] = "keep-alive"
             
-            payload = json.dumps(prov["payload_func"](prompt_sistema, prompt_usuario))
+            # Cabeçalhos montados nativamente com correção do token AQ.
+            if prov["is_openai_format"]:
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {chave_bruta}",
+                    "Connection": "keep-alive"
+                }
+            else:
+                headers = {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": chave_bruta.replace("https://", "").replace("http://", "").replace("//", ""),
+                    "Connection": "keep-alive"
+                }
             
-            time.sleep(1) # Respiro regulatório
-            conn.request("POST", prov["url"], payload, headers)
-            res = conn.getresponse()
-            
+            time.sleep(1) # Respiro preventivo
+            conn.request("POST", prov["url"], json.dumps(prov["payload"]), headers)
+            res = conn.getcall = conn.getresponse() if hasattr(conn, 'getcall') else conn.getresponse()
             data = res.read().decode("utf-8")
             conn.close()
             
             if res.status == 200:
-                return prov["parse_func"](data)
+                json_data = json.loads(data)
+                if prov["is_openai_format"]:
+                    return json_data["choices"][0]["message"]["content"]
+                return json_data["candidates"][0]["content"]["parts"][0]["text"]
                 
-            # Se der qualquer erro de cota (como 429), pula para a próxima chave
+            # Se a API atual falhar (Cota/429/503), pula silenciosamente para a próxima da malha
             continue
                 
         except Exception:
@@ -170,7 +183,7 @@ if st.button("Dar vida ao projeto", type="primary"):
                             codigo_v1 = orquestrar_chamada_rest(p_sistema_2, prompt_reajuste)
                             st.markdown(codigo_v1)
                             s_exec_fix.update(label=f"🛠️ Rodada {rodada}: Material Reescrito pelo Executor!", state="complete")
-                        rodada += 1
+                            rodada += 1
 
             if "[Erro" not in codigo_v1:
                 # --- CASO 4: IA05 AUDITOR ---
@@ -197,4 +210,3 @@ if st.button("Dar vida ao projeto", type="primary"):
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura da Rede"):
     st.caption("Synapse 24 OS Engine • Malha Crítica de Redundância Quádrupla Ativa • Custo Zero")
-    
