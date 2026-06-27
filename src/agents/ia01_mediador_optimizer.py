@@ -23,7 +23,7 @@ class MediadorOptimizer:
             with open(self.caminho_config, "r", encoding="utf-8") as f:
                 dados = json.load(f)
             
-            # Recupere o contador acumulado do historico
+            # Recupera o contador acumulado do historico
             erros_seguidos = dados.get("erros_acumulados_requisito", 0)
             ultima_lacuna = dados.get("ultima_lacuna_identificada", "")
 
@@ -42,3 +42,11 @@ class MediadorOptimizer:
             return diretriz_base
             
         return diretriz_base
+
+    def generar_diretriz_otimizada(self, threshold_erros=3):
+        """
+        Funcao espelho (Bypass de segurança) para evitar erros de digitacao 
+        na chamada do app.py em dispositivos moveis.
+        """
+        return self.gerar_diretriz_otimizada(threshold_erros)
+        
