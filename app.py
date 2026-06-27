@@ -25,9 +25,12 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 2.5 Flash com correção estrita de host e retry"""
+    """Executa a chamada REST nativa para o Gemini 2.5 Flash com higienização estrita da chave"""
     tentativas = 3
     atraso = 4
+    
+    # 🚀 BLINDAGEM MÁXIMA: Sanitiza a chave contra preenchimentos incorretos nos Secrets
+    api_key_limpa = str(api_key).strip().replace("https://", "").replace("http://", "").replace("//", "")
     
     for tentativa in range(tentativas):
         try:
@@ -35,8 +38,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
             if any(palavra in prompt_usuario.lower() for palavra in palavras_bloqueadas):
                 return "[Erro de Segurança]: Comando inválido."
 
-            # 🚀 CORREÇÃO DEFINITIVA: Host puro fixo em formato string, eliminando o erro '.strip' de listas
-            host_limpo = "://googleapis.com"
+            host_limpo = "generativelanguage.googleapis.com"
             
             conn = http.client.HTTPSConnection(host_limpo, timeout=60)
             headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
@@ -50,7 +52,8 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
             
             time.sleep(2)
             
-            url = f"/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
+            # Monta a URL estritamente com a chave purificada
+            url = f"/v1/models/gemini-2.5-flash:generateContent?key={api_key_limpa}"
             conn.request("POST", url, payload, headers)
             res = conn.getresponse()
             data = res.read().decode("utf-8")
@@ -104,7 +107,6 @@ if st.button("Disparar Colmeia Supervisionada", type="primary"):
             codigo_atual = chamar_gemini_direto(gemini_key, p_executor, briefing)
             loop_ativo = True
             rodada = 1
-            # 🚀 AJUSTE DE CUSTO: Travado em 2 rodadas para garantir blindagem do limite de tokens gratuitos
             max_rodadas = 2
             
             while loop_ativo and rodada <= max_rodadas:
