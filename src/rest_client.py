@@ -6,7 +6,7 @@ import streamlit as st
 def requisitar_api(url_completa, headers, payload, timeout=15):
     """
     Executa a requisição HTTP tratando strings de URL de forma robusta.
-    Imune ao erro 'nonnumeric port'.
+    Adiciona o header Host para corrigir falhas de DNS no Streamlit Cloud.
     """
     try:
         if not url_completa.startswith(('http://', 'https://')):
@@ -22,6 +22,9 @@ def requisitar_api(url_completa, headers, payload, timeout=15):
             hostname, port = host.split(":", 1)
             if not port.isdigit():
                 host = hostname
+
+        # Injeta o Host explicitamente nos headers para resolver o DNS
+        headers["Host"] = host
 
         conexao = http.client.HTTPSConnection(host, timeout=timeout)
         conexao.request("POST", path, body=json.dumps(payload), headers=headers)
@@ -39,7 +42,7 @@ def requisitar_api(url_completa, headers, payload, timeout=15):
 def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
     """
     Orquestrador com Malha de Redundância Quádrupla Automática.
-    Lê com segurança do st.secrets para evitar bloqueios do GitHub.
+    Corrigido contra falhas de DNS corporativo.
     """
     logs_erros = []
 
@@ -53,7 +56,6 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
         "temperature": 0.2,
         "max_tokens": 1024
     }
-    # Resgata a chave do painel do Streamlit Cloud de forma oculta
     key_nv = st.secrets.get("NVIDIA_API_KEY", "")
     headers_nv = {
         "Authorization": f"Bearer {key_nv}",
@@ -103,7 +105,7 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
         "Authorization": f"Bearer {key_groq}",
         "Content-Type": "application/json"
     }
-    status, res = requisitar_api("://groq.com", headers_groq, payload_groq)
+    status, res = requisitar_api("api.groq.com/openai/v1/chat/completions", headers_groq, payload_groq)
     if status == 200:
         try:
             return json.loads(res)["choices"]["message"]["content"]
@@ -112,7 +114,7 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
     else:
         logs_erros.append(f"💥 Groq Erro (Status {status}): {res[:120]}")
 
-    # 4. Gemini (Suporte via Gateway OpenAI Base)
+    # 4. Gemini (OpenAI Compatibility Gateway)
     payload_gemini = {
         "model": "gemini-2.5-flash",
         "messages": [
