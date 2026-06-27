@@ -2,17 +2,23 @@ import streamlit as st
 import sys
 import os
 import json
+import importlib.util
 
 # CONFIGURAÇÃO DA PASTA FONTE NO TOPO
 PATH_SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), 'src'))
 if PATH_SRC not in sys.path:
     sys.path.append(PATH_SRC)
 
-# Importação limpa pós-alinhamento de caminhos
-try:
-    from rest_client import orquestrar_chamada_rest
-except ModuleNotFoundError:
-    from src.rest_client import orquestrar_chamada_rest
+# Carregamento Dinâmico Isolado para evitar travamentos do Streamlit Cloud
+caminho_rest = os.path.join(PATH_SRC, "rest_client.py")
+if os.path.exists(caminho_rest):
+    especificacao = importlib.util.spec_from_file_location("rest_client", caminho_rest)
+    rest_client = importlib.util.module_from_spec(especificacao)
+    especificacao.loader.exec_module(rest_client)
+    orquestrar_chamada_rest = rest_client.orquestrar_chamada_rest
+else:
+    st.error(f"🚨 Arquivo crítico não encontrado em: {caminho_rest}")
+    st.stop()
 
 st.set_page_config(page_title="Synapse 24 OS", page_icon="🧠", layout="centered")
 st.title("🧠 Synapse 24 OS")
@@ -143,4 +149,4 @@ if st.button("Dar vida ao projeto", type="primary"):
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura"):
     st.caption("Synapse 24 OS Engine • Redundância Quádrupla Ativa • Custo Zero")
-    
+                                
