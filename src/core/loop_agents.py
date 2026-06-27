@@ -9,7 +9,7 @@ from agents.auditor import AuditorAgent
 def processar_fluxo_colmeia(tarefa_usuario):
     """
     Orquestrador Central baseado em Barramento (Bus).
-    Executa o debate interno em silêncio e isola o produto final em sessão estável.
+    Garante o encaminhamento correto do prompt do Diretor Eduardo para os Especialistas.
     """
     bus = MessageBus()
     mediador = MediadorAgent()
@@ -20,7 +20,7 @@ def processar_fluxo_colmeia(tarefa_usuario):
     st.session_state["plano_salvo_ui"] = ""
     st.session_state["fluxo_concluido_com_sucesso"] = False
 
-    # Carrega diretrizes adaptativas
+    # 1. Recupera as diretrizes adaptativas salvas do arquivo de aprendizado (.json)
     diretriz_sistema = "NORMAL"
     caminho_config = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config_adaptativa.json")
     if os.path.exists(caminho_config):
@@ -28,28 +28,36 @@ def processar_fluxo_colmeia(tarefa_usuario):
             with open(caminho_config, "r", encoding="utf-8") as f:
                 config = json.load(f)
                 if config.get("erros_acumulados", 0) >= 3:
-                    diretriz_sistema = f"FORCAR_METRICAS_ESTRITAS_SMART"
+                    diretriz_sistema = "FORCAR_METRICAS_ESTRITAS_SMART"
         except Exception: pass
 
-    # IA01 [Mediador] monta o briefing inicial em segundo plano
-    with st.spinner("🧠 Sincronizando Colmeia de Agentes Synapse..."):
-        dados_envio = {"tarefa_usuario": tarefa_usuario, "diretriz_optimizer": diretriz_sistema, "rodada": 1}
-        briefing_final = mediador.executar(dados_envio)
-        bus.publicar_evento(mediador.name, "SISTEMA", "BRIEFING_TEXTO", briefing_final)
+    # 2. IA01 [Mediador] monta o briefing técnico com base na tarefa do usuário
+    with st.spinner("🧠 IA01 [Mediador] estruturando briefing estratégico..."):
+        dados_mediador = {
+            "tarefa_usuario": tarefa_usuario, 
+            "diretriz_optimizer": diretriz_sistema, 
+            "rodada": 1
+        }
+        briefing_gerado = mediador.executar(dados_mediador)
+        bus.publicar_evento(mediador.name, "SISTEMA", "BRIEFING_TEXTO", briefing_gerado)
 
-    # IA02 [Executor] processa a entrega real com base no briefing
-    if briefing_final and not briefing_final.startswith("RAIZ_ERRO:"):
-        with st.spinner("⚡ Compilando e lapidando seu produto final..."):
-            plano_tecnico = executor.executar({"briefing": briefing_final})
-            bus.publicar_evento(executor.name, "SISTEMA", "PLANO_FINAL", plano_tecnico)
+    # 3. CORREÇÃO DA MÁQUINA: O IA02 [Executor] recebe a tarefa real do usuário casada com o briefing
+    if briefing_gerado and not briefing_gerado.startswith("RAIZ_ERRO:"):
+        with st.spinner("🛠️ IA02 [Executor Sênior] gerando e refinando seu projeto real..."):
+            dados_executor = {
+                "tarefa_usuario": tarefa_usuario,  # Alinha o foco no pedido original do Diretor
+                "briefing": briefing_gerado
+            }
+            projeto_final = executor.executar(dados_executor)
+            bus.publicar_evento(executor.name, "SISTEMA", "PRODUTO_FINAL", projeto_final)
             
-            # Trava o resultado bruto e real (poema, app, tese) na memória de sessão
-            st.session_state["plano_salvo_ui"] = plano_tecnico
+            # Trava o resultado final legítimo gerado pela inteligência na tela
+            st.session_state["plano_salvo_ui"] = projeto_final
             st.session_state["fluxo_concluido_com_sucesso"] = True
             
-            # Auditor atua em silêncio gravando as métricas adaptativas no JSON
-            auditor.executar({"briefing": briefing_final})
+            # 4. IA05 [Auditor] executa a validação em segundo plano e salva o log
+            auditor.executar({"briefing": briefing_gerado})
     else:
-        st.session_state["plano_salvo_ui"] = f"💥 Falha de comunicação na malha do servidor. Resposta bruta: {briefing_final[:50]}"
+        st.session_state["plano_salvo_ui"] = f"💥 Falha de comunicação na malha do servidor. Detalhes: {briefing_gerado[:50]}"
         st.session_state["fluxo_concluido_com_sucesso"] = True
         
