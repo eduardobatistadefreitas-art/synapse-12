@@ -6,74 +6,97 @@ from utils.network_helper import executar_requisicao_ia
 
 def processar_fluxo_colmeia(tarefa_usuario):
     """
-    Orquestrador Supremo (IA04). 
-    Governa o loop e garante a entrega exclusiva do produto final limpo (sem duplicações).
+    Orquestrador Central Supremo (IA04).
+    Implementa estritamente o workflow multi-agent do infográfico Synapse 24 OS.
+    Suporta classificacao IA01, barramento IA03 <-> IA02 e a Juiza IA05 (Regras 4 e 5).
     """
     bus = MessageBus()
     
+    # Inicialização de memória de sessão limpa e segura
     st.session_state["plano_salvo_ui"] = ""
     st.session_state["fluxo_concluido_com_sucesso"] = False
 
-    # 1. IA01 [Mediador] monta o briefing
-    with st.spinner("🧠 IA01 [Mediador] gerando briefing de requisitos..."):
-        p_sistema_1 = "Você é o IA01 Mediador. Escreva um briefing técnico enxuto com Objetivo, Requisitos quantificáveis (%) e Cronograma com prazos."
-        briefing_estruturado = executar_requisicao_ia(p_sistema_1, tarefa_usuario)
+    # ---------------------------------------------------------------------
+    # PASSO 1: IA01 [MEDIADOR/FILTRO] - Classifica e Filtra Ruídos
+    # ---------------------------------------------------------------------
+    with st.spinner("🧠 IA01 [Mediador] classificando projeto e filtrando ruidos..."):
+        p_sistema_1 = (
+            "Você é o IA01 Mediador/Filtro. Analise o pedido do usuário e classifique o tipo "
+            "de entrega estritamente em uma dessas categorias: [TESE_FISICA, APP_PYTHON, CONTEUDO_GERAL]. "
+            "Retorne a classificação na primeira linha e um briefing limpo (Validated Request) abaixo."
+        )
+        briefing_ia01 = executar_requisicao_ia(p_sistema_1, tarefa_usuario)
+        bus.publicar_evento("IA01_Mediador", "IA03_Gestor", "VALIDATED_REQUEST", briefing_ia01)
+
+    # Identifica o tipo de projeto para aplicar as travas assimétricas da Juíza (IA05)
+    tipo_projeto = "CONTEUDO_GERAL"
+    if "TESE_FISICA" in briefing_ia01:
+        tipo_projeto = "TESE_FISICA"
+    elif "APP_PYTHON" in briefing_ia01 or "app" in tarefa_usuario.lower():
+        tipo_projeto = "APP_PYTHON"
+
+    # Define os limites estritos de estouro do laço (Regra dos 4 e Regra dos 5)
+    limite_loop = 5 if tipo_projeto == "TESE_FISICA" else 4
+    
+    # ---------------------------------------------------------------------
+    # PASSO 2: IA03 [GESTOR/ORQUESTRADOR] - Cria Esqueleto Inicial
+    # ---------------------------------------------------------------------
+    with st.spinner("📋 IA03 [Gestor] estruturando esqueleto base do projeto..."):
+        p_sistema_3_init = "Você é o IA03 Gestor/Orquestrador. Com base na Validated Request do IA01, monte o esqueleto/esqueleto estrutural rígido do projeto."
+        projeto_consolidado = executar_requisicao_ia(p_sistema_3_init, briefing_ia01)
+
+    # Variáveis de controle do laço de performance gerenciado pelo IA04
+    loop_ativo = True
+    contador_falhas = 0
+    feedback_juiza_ia05 = "NENHUMA CORREÇÃO REQUERIDA AINDA"
+
+    # 🔄 LOOP DE PERFORMANCE E CORREÇÃO ASSIMÉTRICO (BACK TO IA02)
+    while loop_ativo and contador_falhas < limite_loop:
         
-        if isinstance(briefing_estruturado, dict):
-            briefing_estruturado = json.dumps(briefing_estruturado)
-        bus.publicar_evento("IA01_Mediador", "IA03_Alinhador", "BRIEFING_TEXTO", briefing_estruturado)
+        # A. IA02 [EXECUTOR/TÉCNICO] - Gera conteúdo bruto com base no esqueleto e correções
+        with st.spinner(f"⚡ [Tentativa {contador_falhas + 1}/{limite_loop}] IA02 [Executor] processando conteudo bruto..."):
+            p_sistema_2 = (
+                "Você é o IA02 Executor/Técnico. Gere o conteúdo bruto rico (Código, Texto, Matemática, História) "
+                "com base no esqueleto do IA03 e aplique as correções exigidas pela Juíza se houver."
+            )
+            prompt_user_2 = f"Esqueleto Atual:\n{projeto_consolidado}\n\nFeedback de Correção da Juíza:\n{feedback_reprovacao_v5 if 'feedback_reprovacao_v5' in locals() else 'Nenhum'}"
+            conteudo_bruto_ia02 = executar_requisicao_ia(p_sistema_2, prompt_user_2)
+            bus.publicar_evento("IA02_Executor", "IA03_Gestor", "RAW_CONTENT", conteudo_bruto_ia02)
 
-    loop_ativo, rodada, max_rodadas = True, 1, 3
-    projeto_alinhado_v3 = ""
-    feedback_reprovacao_v5 = "NENHUM"
+        # B. IA03 [GESTOR] - Consolida e formata os dados brutos recebidos do IA02
+        projeto_consolidado = f"{projeto_consolidado}\n\n{conteudo_bruto_ia02}"
 
-    # 🔄 LOOP DE CONTROLE DOS AGENTES (MÁXIMO 3 PASSAGENS PELO IA05)
-    while loop_ativo and rodada <= max_rodadas:
-        
-        # A. IA03 [Alinhador] monta/refina o projeto chamando a lógica do IA02
-        with st.spinner(f"⚡ [Rodada {rodada}/3] IA03 [Alinhador] estruturando projeto..."):
-            p_sistema_3 = "Você é o IA03 Alinhador Geral. Compile o briefing e os dados da lógica de matemática do IA02 em um projeto rico em Markdown."
-            prompt_user_3 = f"Tarefa original: {tarefa_usuario}\nBriefing base: {briefing_estruturado}\nÚltimo Feedback de Reprovação do IA05: {feedback_reprovacao_v5}"
-            projeto_alinhado_v3 = executar_requisicao_ia(p_sistema_3, prompt_user_3)
+        # C. IA05 [JUIZA/CRÍTICA] - Analisa sem Viés / Positividade
+        with st.spinner(f"⚖️ [Avaliação {contador_falhas + 1}/{limite_loop}] IA05 [Juíza] aplicando crivo de qualidade..."):
+            p_sistema_5 = (
+                "Você é o IA05 Juíza/Crítica. Analise o projeto consolidado sem viés. "
+                "Se o material estiver completo e atender perfeitamente à demanda, responda estritamente 'APROVADO'. "
+                "Se faltar profundidade, qualidade ou estrutura, responda 'REPROVADO:' seguido detalhadamente das falhas encontradas."
+            )
+            veredito_ia05 = executar_requisicao_ia(p_sistema_5, projeto_consolidado)
             
-            if isinstance(projeto_alinhado_v3, dict):
-                projeto_alinhado_v3 = json.dumps(projeto_alinhado_v3)
-            bus.publicar_evento("IA03_Alinhador", "IA02_Executor", "PROJETO_INTERMEDIO", projeto_alinhado_v3)
-
-        # B. IA02 [Executor Técnico] entra processando matemática ou lógica
-        with st.spinner(f"🛠️ [Rodada {rodada}/3] IA02 [Executor] processando lógica e matemática..."):
-            p_sistema_2 = "Você é o IA02 Executor Técnico. Analise o projeto do IA03, execute a lógica, matemática ou estrutura rígida e devolva o resultado refinado."
-            dados_logica_v2 = executar_requisicao_ia(p_sistema_2, projeto_alinhado_v3)
-            
-            if isinstance(dados_logica_v2, dict):
-                dados_logica_v2 = json.dumps(dados_logica_v2)
-            bus.publicar_evento("IA02_Executor", "IA03_Alinhador", "LOGICA_COMPILADA", dados_logica_v2)
-
-        # C. CORREÇÃO DA MÁQUINA: Se o IA02 gerou o produto final (ex: o poema), usamos direto o dele sem duplicar
-        if "SÍNTESE LOCAL" in str(dados_logica_v2) or "POEMA" in str(dados_logica_v2).upper():
-            projeto_final_limpo = dados_logica_v2
-        else:
-            projeto_final_limpo = projeto_alinhado_v3
-
-        # D. IA05 [Auditor] executa a validação crítica SMART
-        with st.spinner(f"⚖️ [Rodada {rodada}/3] IA05 [Auditor] avaliando entrega técnica..."):
-            texto_teste = str(projeto_final_limpo).lower()
-            
-            aprovado_ia05 = ("%" in texto_teste or "taxa" in texto_teste) and ("meses" in texto_teste or "fase" in texto_teste) or "síntese local" in texto_teste
-            
-            if aprovado_ia05:
-                bus.publicar_evento("IA05_Auditor", "IA03_Alinhador", "VEREDITO", "APROVADO")
-                # Salva estritamente apenas o texto limpo, sem metadados técnicos
-                st.session_state["plano_salvo_ui"] = projeto_final_limpo
+            if "APROVADO" in veredito_ia05.upper():
+                bus.publicar_evento("IA05_Auditor", "SISTEMA", "FINAL_VALIDATION", "APPROVED")
+                st.session_state["plano_salvo_ui"] = projeto_consolidado
                 st.session_state["fluxo_concluido_com_sucesso"] = True
-                loop_ativo = False
+                loop_ativo = False # Interrompe o fluxo - Delivers final product to user
             else:
-                feedback_reprovacao_v5 = "REPROVADO: O plano técnico final ainda carece de prazos explícitos em meses ou métricas quantificáveis de sucesso."
-                bus.publicar_evento("IA05_Auditor", "IA03_Alinhador", "VEREDITO", feedback_reprovacao_v5)
+                contador_falhas += 1
+                feedback_reprovacao_v5 = veredito_ia05.replace("REPROVADO:", "").strip()
+                bus.publicar_evento("IA05_Auditor", "IA03_Gestor", "FORCES_CORRECTION", feedback_reprovacao_v5)
                 
-        rodada += 1
+                # Se atingir o limite exato de falhas da Regra, força a entrega no estado atual
+                if contador_falhas >= limite_loop:
+                    loop_ativo = False
 
+    # 🏁 TRATAMENTO DE SAÍDA BASEADO NAS REGRAS DO INFOGRÁFICO
     if not st.session_state.get("fluxo_concluido_com_sucesso"):
-        st.session_state["plano_salvo_ui"] = projeto_final_limpo
+        if tipo_projeto == "TESE_FISICA":
+            # Regra dos 5 para tese física
+            st.session_state["plano_salvo_ui"] = f"{projeto_consolidado}\n\n💥 **TESE QUEBRADA (VALIDATED ONLY)**\n_Nota do Orquestrador: O projeto falhou em 5 validações consecutivas da Juíza IA05._"
+        else:
+            # Regra dos 4 para Apps / Conteúdo Geral
+            st.session_state["plano_salvo_ui"] = f"{projeto_consolidado}\n\n🔴 **PRODUTO IMPERFEITO**\n_Nota do Orquestrador: Entrega forçada após o estouro do limite de 4 correções da Regra dos 4._"
+        
         st.session_state["fluxo_concluido_com_sucesso"] = True
         
