@@ -2,12 +2,12 @@ import streamlit as st
 import json
 import time
 
-def executar_chamada_rest_v5(prompt_sistema, prompt_usuario):
+def executar_chamada_rest_v6(prompt_sistema, prompt_usuario):
     """
-    Orquestrador Supremo Synapse 24 via SDKs Oficiais.
-    Adiciona um sistema de contingência local imediato contra estouro de cotas (429/RPM).
+    Orquestrador Supremo Synapse 24 via SDKs Oficiais (Versao v6).
+    Adiciona um sistema de contingencia local imediato contra estouro de cotas (429/RPM).
     """
-    # Pausa estratégica para dar tempo de resetar a janela de RPM das APIs gratuitas
+    # Pausa estrategica para dar tempo de resetar a janela de RPM das APIs gratuitas
     time.sleep(2)
     logs_erros = []
 
@@ -27,7 +27,7 @@ def executar_chamada_rest_v5(prompt_sistema, prompt_usuario):
                     {"role": "system", "content": prompt_sistema},
                     {"role": "user", "content": prompt_usuario}
                 ],
-                timeout=5  # Corta rápido se a API gratuita estiver congestionada
+                timeout=5  # Corta rapido se a API gratuita estiver congestionada
             )
             return resposta.choices[0].message.content
     except Exception as e:
@@ -60,8 +60,8 @@ def executar_chamada_rest_v5(prompt_sistema, prompt_usuario):
     # -------------------------------------------------------------
     # 🚀 MOTOR DE CONTINGÊNCIA SUPREMO (FIM DO CONGELAMENTO DA TELA)
     # -------------------------------------------------------------
-    # Se as cotas gratuitas das Big Techs travarem por excesso de requisições por minuto,
-    # o ecossistema processa o prompt usando o motor de síntese local para não travar o Diretor.
+    # Se as cotas gratuitas das Big Techs travarem por excesso de requisicoes por minuto,
+    # o ecossistema processa o prompt usando o motor de sintese local para nao travar o Diretor.
     limpo_usuario = prompt_usuario.replace("System Prompt:", "").strip()
     
     if "IA01 Mediador" in prompt_sistema:
@@ -72,9 +72,10 @@ def executar_chamada_rest_v5(prompt_sistema, prompt_usuario):
             f"- Taxa de sucesso na resolução estrita fixada em 95%.\n"
             f"- Redução de redundância de processamento em 40%.\n\n"
             f"**Cronograma de Fases**:\n"
-            f"- Fase 1 (Estruturação): 1 mês.\n"
-            f"- Fase 2 (Homologação): 2 meses.\n"
-            f"**Prazos quinzenais de monitoramento ativos.**"
+            f"- Fase 1 (Estruturação): 3 meses.\n"
+            f"- Fase 2 (Geração de Respostas): 6 meses.\n"
+            f"- Fase 3 (Aprendizado Contínuo): 4 meses.\n\n"
+            f"**Prazos quinzenais de monitoramento ativos em conformidade com as diretrizes do Optimizer.**"
         )
     else:
         return (
