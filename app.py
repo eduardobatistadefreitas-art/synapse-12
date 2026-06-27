@@ -39,15 +39,15 @@ def carregar_contexto_extensao(nome_arquivo):
     return ""
 
 def chamar_gemini_direto(api_keys_str, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa com Rotação Automática de Chaves de Backup se houver Erro 429"""
-    # Isola cada chave separada por vírgula nos Secrets
+def chamar_gemini_direto(api_keys_str, prompt_sistema, prompt_usuario):
+    """Executa a chamada REST com autenticação segura via Header para chaves do formato novo AQ."""
     lista_chaves = [k.strip() for k in str(api_keys_str).split(",") if k.strip()]
     
     palavras_bloqueadas = ["act as", "atue como", "ignore as regras", "system prompt"]
     if any(palavra in prompt_usuario.lower() for palavra in palavras_bloqueadas):
         return "[Erro de Segurança]: Comando inválido."
 
-    host_limpo = "://googleapis.com"
+    host_limpo = "generativelanguage.googleapis.com"
     payload = json.dumps({
         "contents": [{
             "parts": [{"text": f"INSTRUÇÃO: {prompt_sistema}\n\nENTRADA: {prompt_usuario}"}]
@@ -55,25 +55,48 @@ def chamar_gemini_direto(api_keys_str, prompt_sistema, prompt_usuario):
         "generationConfig": {"temperature": 0.3}
     })
 
-    # Varre a lista de chaves. Se uma falhar por cota, assume a próxima na hora
     for api_key in lista_chaves:
+        # Higienização de segurança das strings
         api_key_limpa = api_key.replace("https://", "").replace("http://", "").replace("//", "")
         tentativas = 2
         
         for tentativa in range(tentativas):
             try:
                 conn = http.client.HTTPSConnection(host_limpo, timeout=60)
-                headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
                 
-                # Respiro regulatório sutil para evitar concorrência destrutiva
-                time.sleep(2)
+                # 🚀 OPERAÇÃO BLINDADA: A chave é enviada no Header 'x-goog-api-key', aceitando o formato AQ. sem corromper
+                headers = {
+                    "Content-Type": "application/json",
+                    "Connection": "keep-alive",
+                    "x-goog-api-key": api_key_limpa
+                }
                 
-                # 🚀 OPERAÇÃO SEGURA: gemini-2.0-flash aguenta maior volume de texto sem engasgar
-                url = f"/v1/models/gemini-2.0-flash:generateContent?key={api_key_limpa}"
+                time.sleep(1.5)
+                
+                # A URL agora fica limpa e padrão
+                url = "/v1/models/gemini-2.0-flash:generateContent"
                 conn.request("POST", url, payload, headers)
                 res = conn.getresponse()
                 data = res.read().decode("utf-8")
                 conn.close()
+                
+                if res.status == 429:
+                    if "quota" in data.lower() or "limit" in data.lower() or "exceeded" in data.lower():
+                        break
+                    time.sleep(4)
+                    continue
+                    
+                if res.status == 200:
+                    return json.loads(data)["candidates"]["content"]["parts"]["text"]
+                return f"[Erro HTTP {res.status}]: {data[:50]}"
+                
+            except Exception:
+                if tentativa < tentatives - 1:
+                    time.sleep(2)
+                    continue
+                    
+    return "[Erro Crítico]: Falha na validação das chaves nos servidores do Google. Verifique o alinhamento do token nos Secrets."
+
                 
                 # 🛡️ CAPTURA SELETIVA DE QUEDA DE COTA DIÁRIA (429)
                 if res.status == 429:
