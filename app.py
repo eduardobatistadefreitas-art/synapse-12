@@ -14,7 +14,7 @@ st.set_page_config(page_title="Synapse 12 OS", page_icon="🧠", layout="centere
 
 st.title("🧠 Synapse 12 OS")
 st.subheader("Sua ideia, executada por uma rede de agentes.")
-st.write("_Descreva seu objetivo. Nossa colmeia poliglota cria códigos, teses ou histórias em tempo real com tolerância a falhas._")
+st.write("_Descreva seu objetivo. Nossa colmeia de IAs vai planejar, criar, criticar e auditar a entrega em tempo real._")
 
 st.markdown("---")
 
@@ -39,15 +39,14 @@ def carregar_contexto_extensao(nome_arquivo):
     return ""
 
 def chamar_gemini_direto(api_keys_str, prompt_sistema, prompt_usuario):
-def chamar_gemini_direto(api_keys_str, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST com autenticação segura via Header para chaves do formato novo AQ."""
+    """Executa a chamada REST com autenticação segura via Header para chaves AQ."""
     lista_chaves = [k.strip() for k in str(api_keys_str).split(",") if k.strip()]
     
     palavras_bloqueadas = ["act as", "atue como", "ignore as regras", "system prompt"]
     if any(palavra in prompt_usuario.lower() for palavra in palavras_bloqueadas):
         return "[Erro de Segurança]: Comando inválido."
 
-    host_limpo = "generativelanguage.googleapis.com"
+    host_limpo = "://googleapis.com"
     payload = json.dumps({
         "contents": [{
             "parts": [{"text": f"INSTRUÇÃO: {prompt_sistema}\n\nENTRADA: {prompt_usuario}"}]
@@ -56,7 +55,6 @@ def chamar_gemini_direto(api_keys_str, prompt_sistema, prompt_usuario):
     })
 
     for api_key in lista_chaves:
-        # Higienização de segurança das strings
         api_key_limpa = api_key.replace("https://", "").replace("http://", "").replace("//", "")
         tentativas = 2
         
@@ -64,7 +62,7 @@ def chamar_gemini_direto(api_keys_str, prompt_sistema, prompt_usuario):
             try:
                 conn = http.client.HTTPSConnection(host_limpo, timeout=60)
                 
-                # 🚀 OPERAÇÃO BLINDADA: A chave é enviada no Header 'x-goog-api-key', aceitando o formato AQ. sem corromper
+                # 🚀 AUTENTICAÇÃO ATUALIZADA: Envia o token AQ no Header sem corromper a requisição
                 headers = {
                     "Content-Type": "application/json",
                     "Connection": "keep-alive",
@@ -73,7 +71,6 @@ def chamar_gemini_direto(api_keys_str, prompt_sistema, prompt_usuario):
                 
                 time.sleep(1.5)
                 
-                # A URL agora fica limpa e padrão
                 url = "/v1/models/gemini-2.0-flash:generateContent"
                 conn.request("POST", url, payload, headers)
                 res = conn.getresponse()
@@ -91,30 +88,11 @@ def chamar_gemini_direto(api_keys_str, prompt_sistema, prompt_usuario):
                 return f"[Erro HTTP {res.status}]: {data[:50]}"
                 
             except Exception:
-                if tentativa < tentatives - 1:
-                    time.sleep(2)
-                    continue
-                    
-    return "[Erro Crítico]: Falha na validação das chaves nos servidores do Google. Verifique o alinhamento do token nos Secrets."
-
-                
-                # 🛡️ CAPTURA SELETIVA DE QUEDA DE COTA DIÁRIA (429)
-                if res.status == 429:
-                    if "quota" in data.lower() or "limit" in data.lower() or "exceeded" in data.lower():
-                        break # Abandona esta chave esgotada e pula para a próxima da lista
-                    time.sleep(4)
-                    continue
-                    
-                if res.status == 200:
-                    return json.loads(data)["candidates"]["content"]["parts"]["text"]
-                return f"[Erro HTTP {res.status}]: {data[:50]}"
-                
-            except Exception:
                 if tentativa < tentativas - 1:
                     time.sleep(2)
                     continue
                     
-    return "[Erro Crítico]: Todas as suas chaves gratuitas do Google AI Studio atingiram o limite diário de cota. Insira uma nova chave de backup nos Secrets para destravar."
+    return "[Erro Crítico]: Falha de cota diária ou validação das chaves nos servidores do Google."
 
 if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
@@ -204,3 +182,4 @@ if st.button("Dar vida ao projeto", type="primary"):
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura da Rede"):
     st.caption("Synapse 24 Engine • Malha Multi-Chave Poliglota • Google AI Studio Layer")
+    
