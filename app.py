@@ -4,6 +4,7 @@ import sys
 import os
 import json
 import http.client
+import time  # 🚀 IMPORTANTE: Necessário para a cadência e recuo de tempo
 
 # Garante que o Streamlit encontre a pasta 'src' no servidor em nuvem
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
@@ -24,37 +25,55 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 2.5 Flash com sanitização absoluta de host"""
-    try:
-        palavras_bloqueadas = ["act as", "atue como", "ignore as regras", "system prompt"]
-        if any(palavra in prompt_usuario.lower() for palavra in palavras_bloqueadas):
-            return "[Erro de Segurança]: Comando inválido."
+    """Executa a chamada REST nativa para o Gemini 2.5 Flash com Retry Automático para Erro 429"""
+    tentativas = 3
+    atraso = 4  # Tempo inicial de espera em segundos para o recuo
+    
+    for tentativa in range(tentativas):
+        try:
+            palavras_bloqueadas = ["act as", "atue como", "ignore as regras", "system prompt"]
+            if any(palavra in prompt_usuario.lower() for palavra in palavras_bloqueadas):
+                return "[Erro de Segurança]: Comando inválido."
 
-        # 🚀 ULTRA BLINDAGEM: Isola estritamente o host puro eliminando barras ou protocolos residuais
-        host_base = "generativelanguage.googleapis.com"
-        host_limpo = host_base.split("//")[-1].split(":")[0].strip("/")
-        
-        conn = http.client.HTTPSConnection(host_limpo, timeout=60)
-        headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
-        
-        payload = json.dumps({
-            "contents": [{
-                "parts": [{"text": f"INSTRUÇÃO: {prompt_sistema}\n\nENTRADA: {prompt_usuario}"}]
-            }],
-            "generationConfig": {"temperature": 0.3}
-        })
-        
-        url = f"/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
-        conn.request("POST", url, payload, headers)
-        res = conn.getresponse()
-        data = res.read().decode("utf-8")
-        conn.close()
-        
-        if res.status == 200:
-            return json.loads(data)["candidates"]["content"]["parts"]["text"]
-        return f"[Erro HTTP {res.status}]: {data[:50]}"
-    except Exception as e:
-        return f"[Falha de Conexão]: {e}"
+            host_base = "://googleapis.com"
+            host_limpo = host_base.split("//")[-1].split(":").strip("/")
+            
+            conn = http.client.HTTPSConnection(host_limpo, timeout=60)
+            headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
+            
+            payload = json.dumps({
+                "contents": [{
+                    "parts": [{"text": f"INSTRUÇÃO: {prompt_sistema}\n\nENTRADA: {prompt_usuario}"}]
+                }],
+                "generationConfig": {"temperature": 0.3}
+            })
+            
+            # Adiciona um pequeno respiro padrão antes de submeter para evitar concorrência destrutiva
+            time.sleep(2)
+            
+            url = f"/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
+            conn.request("POST", url, payload, headers)
+            res = conn.getresponse()
+            data = res.read().decode("utf-8")
+            conn.close()
+            
+            # 🛡️ CAPTURA SELETIVA DO ERRO 429
+            if res.status == 429:
+                if tentativa < tentativas - 1:
+                    time.sleep(atraso)
+                    atraso *= 2  # Recuo exponencial para dar tempo da API limpar a cota
+                    continue
+                return f"[Erro HTTP 429]: Limite de requisições excedido. Aguarde 1 minuto para tentar novamente."
+                
+            if res.status == 200:
+                return json.loads(data)["candidates"]["content"]["parts"]["text"]
+            return f"[Erro HTTP {res.status}]: {data[:50]}"
+            
+        except Exception as e:
+            if tentativa < tentativas - 1:
+                time.sleep(2)
+                continue
+            return f"[Falha de Conexão]: {e}"
 
 if st.button("Disparar Colmeia Supervisionada", type="primary"):
     if tarefa_input.strip():
@@ -80,14 +99,14 @@ if st.button("Disparar Colmeia Supervisionada", type="primary"):
             p_supervisor = (
                 "Você é o IA04 Supervisor. Analise a última versão do código e a crítica feita pela IA03. "
                 "Responda estritamente com uma palavra: 'APROVADO' se o código resolve o briefing perfeitamente, "
-                "ou 'REPROVADO' se ele ainda precisa passar por mais um ciclo de refatoração."
+                "or 'REPROVADO' se ele ainda precisa passar por mais um ciclo de refatoração."
             )
             
             # Inicialização do loop de debate
             codigo_atual = chamar_gemini_direto(gemini_key, p_executor, briefing)
             loop_ativo = True
             rodada = 1
-            max_rodadas = 5
+            max_rodadas = 2  # Reduzido de 5 para 3 temporariamente para economizar cota no ambiente free
             
             while loop_ativo and rodada <= max_rodadas:
                 with st.expander(f"🔄 Rodada {rodada}: Debate Ativo & Decisão do Supervisor", expanded=True):
