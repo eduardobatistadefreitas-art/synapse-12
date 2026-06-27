@@ -24,15 +24,17 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 2.5 Flash com sanitização corrigida"""
+    """Executa a chamada REST nativa para o Gemini 2.5 Flash com sanitização absoluta de host"""
     try:
         palavras_bloqueadas = ["act as", "atue como", "ignore as regras", "system prompt"]
-        # 🚀 CORREÇÃO CRÍTICA: Corrigido de 'palabra' para 'palavra' para eliminar o NameError
         if any(palavra in prompt_usuario.lower() for palavra in palavras_bloqueadas):
             return "[Erro de Segurança]: Comando inválido."
 
-        host = "://googleapis.com"
-        conn = http.client.HTTPSConnection(host, timeout=60)
+        # 🚀 ULTRA BLINDAGEM: Isola estritamente o host puro eliminando barras ou protocolos residuais
+        host_base = "generativelanguage.googleapis.com"
+        host_limpo = host_base.split("//")[-1].split(":")[0].strip("/")
+        
+        conn = http.client.HTTPSConnection(host_limpo, timeout=60)
         headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
         
         payload = json.dumps({
@@ -50,7 +52,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
         
         if res.status == 200:
             return json.loads(data)["candidates"]["content"]["parts"]["text"]
-        return f"[Erro HTTP {res.status}]"
+        return f"[Erro HTTP {res.status}]: {data[:50]}"
     except Exception as e:
         return f"[Falha de Conexão]: {e}"
 
