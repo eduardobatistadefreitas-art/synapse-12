@@ -2,10 +2,11 @@
 import http.client
 import json
 import time
+import traceback
 import streamlit as st
 
 def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
-    """Orquestrador resiliente com Failover Quádruplo Real."""
+    """Orquestrador com Failover Real e captura detalhada de tracebacks para diagnóstico."""
     provedores = [
         {
             "nome": "NVIDIA",
@@ -41,22 +42,20 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
         }
     ]
 
+    historico_erros = []
+
     for prov in provedores:
-        if not prov["key"]:
+        chave_bruta = str(prov["key"]).strip() if prov["key"] else ""
+        if not chave_bruta or "não localizada" in chave_bruta.lower() or chave_bruta == "None":
+            historico_erros.append(f"❌ {prov['nome']}: Chave não configurada ou vazia nos Secrets.")
             continue
             
-        chave_bruta = str(prov["key"]).strip()
-        if "não localizada" in chave_bruta.lower() or chave_bruta == "None" or not chave_bruta:
-            continue
-            
-        # Pega a primeira chave caso o Gemini possua rotação por vírgula
         if prov["nome"] == "Gemini" and "," in chave_bruta:
             chave_bruta = [k.strip() for k in chave_bruta.split(",") if k.strip()][0]
             
         try:
-            conn = http.client.HTTPSConnection(prov["host"], timeout=45)
+            conn = http.client.HTTPSConnection(prov["host"], timeout=20)
             
-            # Formatação estrita de cabeçalhos de autenticação comercial
             if prov["is_openai_format"]:
                 headers = {
                     "Content-Type": "application/json", 
@@ -64,7 +63,6 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
                     "Connection": "keep-alive"
                 }
             else:
-                # Sanitização estrita do token do Google
                 token_gemini = chave_bruta.replace("https://", "").replace("http://", "").replace("//", "")
                 headers = {
                     "Content-Type": "application/json", 
@@ -72,20 +70,25 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
                     "Connection": "keep-alive"
                 }
             
-            time.sleep(1) # Delay regulatório antibloqueio
+            time.sleep(0.5)
             conn.request("POST", prov["url"], json.dumps(prov["payload"]), headers)
-            res = conn.getcall = conn.getresponse() if hasattr(conn, 'getcall') else conn.getcall if False else conn.getresponse()
+            res = conn.getresponse()
             data = res.read().decode("utf-8")
             conn.close()
             
             if res.status == 200:
                 json_data = json.loads(data)
                 if prov["is_openai_format"]:
-                    return json_data["choices"][0]["message"]["content"]
-                return json_data["candidates"][0]["content"]["parts"][0]["text"]
-            continue
-        except Exception:
+                    return json_data["choices"]["message"]["content"]
+                return json_data["candidates"]["content"]["parts"]["text"]
+            
+            historico_erros.append(f"⚠️ {prov['nome']} (Status {res.status}): {data[:120]}")
+            
+        except Exception as e:
+            tb = traceback.format_exc()
+            historico_erros.append(f"💥 {prov['nome']} Falha Interna: {str(e)}\n{tb[:150]}")
             continue
             
-    return "[Erro Crítico Total]: Todas as malhas de IA falharam ou estão sem chaves válidas configuradas."
-            
+    # Retorna o relatório completo estruturado em JSON para o app decodificar na tela
+    return "RAIZ_ERRO:" + json.dumps(historico_erros)
+    
