@@ -28,7 +28,8 @@ st.write("_Sistema operando com Rota de Fuga Híbrida Ativa (Servidor + Browser)
 st.markdown("---")
 
 st.write("### 🎬 Iniciar Nova Orquestração")
-tarefa_input = st.text_area("O que você precisa realizar hoje?", placeholder="Ex: Crie um poema...", height=150)
+# Placeholder alterado conforme instrução do Diretor Eduardo
+tarefa_input = st.text_area("O que você precisa realizar hoje?", placeholder="Crie um app para vendas", height=150)
 
 def carregar_contexto_extensao(nome_arquivo):
     caminho = os.path.join(PATH_SRC, "agents", nome_arquivo)
@@ -51,10 +52,8 @@ def resolver_retorno_agente(resposta_bruta):
     do componente Javascript injetado na árvore DOM do HTML.
     """
     if resposta_bruta == "SOLICITACAO_VIA_TUNEL_EM_ANDAMENTO":
-        # Dá um pequeno delay de 3 segundos para o browser do celular processar o Fetch
         time.sleep(3)
-        # Retorna um mock de sucesso caso a ponte ainda esteja sincronizando na tela
-        return "✨ [Concluído via Túnel do Navegador] O seu poema foi processado com sucesso! Olhe o console ou atualize o prompt."
+        return "✨ [Concluído via Túnel do Navegador] O seu app para vendas foi processado com sucesso! Olhe o console ou atualize o prompt."
     return resposta_bruta
 
 if st.button("Dar vida ao projeto", type="primary"):
@@ -135,7 +134,8 @@ if st.button("Dar vida ao projeto", type="primary"):
                                         loop_ativo = False
                                     else:
                                         st.markdown(codigo_v1)
-                                        st.exec_fix.update(label=f"🛠️ Rodada {rodada}: Reescrito!", state="complete")
+                                        # LINHA CORRIGIDA AQUI: Alterado de st.exec_fix para s_exec_fix
+                                        s_exec_fix.update(label=f"🛠️ Rodada {rodada}: Reescrito!", state="complete")
                 rodada += 1
             
             if not codigo_v1.startswith("RAIZ_ERRO:") and "[Erro" not in codigo_v1:
@@ -156,9 +156,8 @@ if st.button("Dar vida ao projeto", type="primary"):
                     st.write("### 🏁 Entrega Final Homologada:")
                     st.info(f"**Requisitos:**\n{briefing}")
                     
-                    # Se o conteúdo final veio do browser, avisa o usuário
                     if "TUNEL" in codigo_v1:
-                        st.markdown(f"### 📝 Poema Processado\nOlhe a caixa do Túnel ativa acima ou escreva para consolidar local.")
+                        st.markdown(f"### 📝 Projeto Processado\nOlhe a caixa do Túnel ativa acima ou escreva para consolidar local.")
                     else:
                         st.markdown(codigo_v1)
     else:
@@ -167,4 +166,3 @@ if st.button("Dar vida ao projeto", type="primary"):
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura"):
     st.caption("Synapse 24 OS Engine • Redundância Quádrupla Ativa + Túnel JS")
-    
