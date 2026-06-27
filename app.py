@@ -29,16 +29,13 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
     """Executa a chamada REST nativa com timeout estendido e persistência de conexão"""
     try:
         host = "generativelanguage.googleapis.com"
-        # 🚀 ALTERAÇÃO CRÍTICA: Timeout estendido para 60 segundos (evita read timeout de agentes complexos)
         conn = http.client.HTTPSConnection(host, timeout=60)
         
-        # Cabeçalhos otimizados para manter o túnel estável
         headers = {
             "Content-Type": "application/json",
             "Connection": "keep-alive"
         }
         
-        # Estrutura oficial do prompt do Gemini
         payload = json.dumps({
             "contents": [{
                 "parts": [{
@@ -48,8 +45,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
             "generationConfig": {"temperature": 0.2}
         })
         
-        # Mantendo o modelo robusto ativo gemini-2.5-flash
-        url = f"/v1/models/gemini-2.0-flash:generateContent?key={api_key}"
+        url = f"/v1/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
         conn.request("POST", url, payload, headers)
         
         res = conn.getresponse()
@@ -65,7 +61,6 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
 
 if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
-        # Busca nos Secrets do Streamlit Cloud
         gemini_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else os.getenv("GEMINI_API_KEY")
         
         if not gemini_key:
@@ -80,20 +75,50 @@ if st.button("Dar vida ao projeto", type="primary"):
                 st.write(briefing)
                 s1.update(label="🧠 IA01 [Mediador] concluiu o Briefing Técnico!", state="complete")
             
-            # --- CASO 2: IA02 EXECUTOR ---
-            with st.status("🛠️ IA02 [Executor] está escrevendo o código funcional em Python...", expanded=True) as s2:
-                p_sistema_2 = "Você é o IA02 Executor, programador sênior. Escreva um código Python estruturado para resolver o briefing enviado. Mande apenas o código dentro de blocos markdown."
+            # --- INICIALIZAÇÃO DO MODELO DE DEBATE ---
+            p_sistema_2 = "Você é o IA02 Executor, programador sênior. Escreva um código Python estruturado para resolver o briefing ou corrigir rigorosamente as falhas apontadas pelo crítico. Mande apenas o código dentro de blocos markdown."
+            p_sistema_3 = "Você é o IA03 Crítico Comercial. Avalie o código enviado pelo Executor e aponte erros técnicos ou de custo estruturais que precisam ser refeitos imediatamente."
+            p_sistema_4 = "Você é o IA04 Supervisor. Analise o código e a crítica feita pelo IA03. Responda estritamente 'APROVADO' se o código está pronto e funcional, ou 'REPROVADO' se ele ainda precisa passar por refinamento."
+            
+            # Geração da versão inicial (Rodada 0)
+            with st.status("🛠️ IA02 [Executor] gerando versão inicial do código...", expanded=True) as s2:
                 codigo_v1 = chamar_gemini_direto(gemini_key, p_sistema_2, briefing)
                 st.code(codigo_v1, language="python")
-                s2.update(label="🛠️ IA02 [Executor] gerou a Versão 1.0 do Código!", state="complete")
+                s2.update(label="🛠️ IA02 [Executor] gerou a Versão Inicial!", state="complete")
+
+            # --- O LOOPING REAL SUPERVISIONADO ---
+            loop_ativo = True
+            rodada = 1
+            max_rodadas = 2  # Limite seguro para não queimar tokens grátis
             
-            # --- CASO 3: IA03 CRÍTICO ---
-            with st.status("🗺️ IA03 [Crítico] está avaliando o plano de negócios e regras comerciais...", expanded=True) as s3:
-                p_sistema_3 = "Você é o IA03 Crítico Comercial. Avalie o código e a solução proposta e aponte 1 melhoria comercial ou de custo para o usuário."
-                critica = chamar_gemini_direto(gemini_key, p_sistema_3, codigo_v1)
-                st.write(critica)
-                s3.update(label="🗺️ IA03 [Crítico] emitiu o Relatório Comercial!", state="complete")
-            
+            while loop_ativo and rodada <= max_rodadas:
+                st.markdown(f"#### 🔄 Rodada {rodada} de Ajuste")
+                
+                # Turno do Crítico (IA03)
+                with st.status(f"🗺️ Rodada {rodada}: IA03 [Crítico] analisando código atual...", expanded=True) as s3:
+                    critica = chamar_gemini_direto(gemini_key, p_sistema_3, codigo_v1)
+                    st.write(critica)
+                    s3.update(label=f"🗺️ Rodada {rodada}: Análise do Crítico Emitida!", state="complete")
+                
+                # Turno de Julgamento do Supervisor (IA04)
+                with st.status(f"⚖️ Rodada {rodada}: IA04 [Supervisor] julgando qualidade...", expanded=True) as s_super:
+                    contexto_supervisao = f"Briefing:\n{briefing}\n\nCódigo:\n{codigo_v1}\n\nCrítica:\n{critica}"
+                    veredito = chamar_gemini_direto(gemini_key, p_sistema_4, contexto_supervisao).strip().upper()
+                    st.write(f"Veredito do Supervisor: **{veredito}**")
+                    
+                    if "APROVADO" in veredito:
+                        s_super.update(label=f"✅ Rodada {rodada}: Supervisor aprovou a solução!", state="complete")
+                        loop_ativo = False
+                    else:
+                        s_super.update(label=f"⚠️ Rodada {rodada}: Supervisor reprovou! Forçando refatoração.", state="complete")
+                        # Turno de Correção do Executor (IA02)
+                        with st.status(f"🛠️ Rodada {rodada}: IA02 [Executor] aplicando correções...", expanded=True) as s_exec_fix:
+                            prompt_reajuste = f"Briefing:\n{briefing}\n\nCódigo Atual:\n{codigo_v1}\n\nErros para Corrigir:\n{critica}"
+                            codigo_v1 = chamar_gemini_direto(gemini_key, p_sistema_2, prompt_reajuste)
+                            st.code(codigo_v1, language="python")
+                            s_exec_fix.update(label=f"🛠️ Rodada {rodada}: Código Reescrito pelo Executor!", state="complete")
+                        rodada += 1
+
             # --- CASO 4: IA05 AUDITOR ---
             with st.status("⚖️ IA05 [Auditor] está caçando bugs e revisando a segurança do código...", expanded=True) as s4:
                 p_sistema_5 = "Você é o IA05 Auditor de Código/Adversário. Analise o código gerado pelo Executor e aponte se ele está seguro e funcional ou se tem algum erro grave."
@@ -114,4 +139,4 @@ if st.button("Dar vida ao projeto", type="primary"):
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura da Rede"):
     st.caption("Synapse 12 Engine • Orquestração Concorrente Nativa • Google AI Studio API Layer")
-
+    
