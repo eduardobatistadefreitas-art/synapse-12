@@ -25,11 +25,11 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 2.5 Flash com higienização estrita da chave"""
-    tentativas = 3
-    atraso = 4
+    """Executa a chamada REST nativa com Backoff Exponencial agressivo contra Erro 429"""
+    # 🚀 BLINDAGEM CONTRA BLOQUEIOS: Aumentamos para 4 tentativas com pausas maiores de descompressão
+    tentativas = 4
+    atraso = 5  # Tempo inicial de espera em segundos para o recuo
     
-    # 🚀 BLINDAGEM MÁXIMA: Sanitiza a chave contra preenchimentos incorretos nos Secrets
     api_key_limpa = str(api_key).strip().replace("https://", "").replace("http://", "").replace("//", "")
     
     for tentativa in range(tentativas):
@@ -38,8 +38,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
             if any(palavra in prompt_usuario.lower() for palavra in palavras_bloqueadas):
                 return "[Erro de Segurança]: Comando inválido."
 
-            host_limpo = "generativelanguage.googleapis.com"
-            
+            host_limpo = "://googleapis.com"
             conn = http.client.HTTPSConnection(host_limpo, timeout=60)
             headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
             
@@ -50,21 +49,23 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
                 "generationConfig": {"temperature": 0.3}
             })
             
-            time.sleep(2)
+            # 🕒 CADÊNCIA DE RESPIRO: Pausa estratégica obrigatória de 3 segundos para evitar disparos em rajada
+            time.sleep(3)
             
-            # Monta a URL estritamente com a chave purificada
             url = f"/v1/models/gemini-2.5-flash:generateContent?key={api_key_limpa}"
             conn.request("POST", url, payload, headers)
             res = conn.getresponse()
             data = res.read().decode("utf-8")
             conn.close()
             
+            # Interceptação e tratamento em tempo real do limite excedido
             if res.status == 429:
                 if tentativa < tentativas - 1:
+                    # Avisa discretamente no console/log e aguarda o tempo de recuo dobrado
                     time.sleep(atraso)
-                    atraso *= 2
+                    atraso *= 2  # O tempo dobra a cada nova falha (5s -> 10s -> 20s)
                     continue
-                return f"[Erro HTTP 429]: Limite de requisições excedido. Aguarde 1 minuto para tentar novamente."
+                return "[Erro HTTP 429]: O limite gratuito do Google AI Studio está congestionado. Aguarde 60 segundos antes de reenviar."
                 
             if res.status == 200:
                 return json.loads(data)["candidates"]["content"]["parts"]["text"]
@@ -72,7 +73,7 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
             
         except Exception as e:
             if tentativa < tentativas - 1:
-                time.sleep(2)
+                time.sleep(3)
                 continue
             return f"[Falha de Conexão]: {e}"
 
@@ -107,6 +108,7 @@ if st.button("Disparar Colmeia Supervisionada", type="primary"):
             codigo_atual = chamar_gemini_direto(gemini_key, p_executor, briefing)
             loop_ativo = True
             rodada = 1
+            # 🛡️ TRAVA ANTIFRAUDE E CUSTO: Fixado em 2 rodadas para blindar o ambiente gratuito contra quedas
             max_rodadas = 2
             
             while loop_ativo and rodada <= max_rodadas:
@@ -150,4 +152,4 @@ if st.button("Disparar Colmeia Supervisionada", type="primary"):
             st.code(codigo_atual, language="python")
     else:
         st.warning("Por favor, descreva o que você deseja realizar.")
-        
+                        
