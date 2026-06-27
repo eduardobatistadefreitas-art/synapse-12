@@ -14,7 +14,7 @@ st.set_page_config(page_title="Synapse 12 OS", page_icon="🧠", layout="centere
 
 st.title("🧠 Synapse 12 OS")
 st.subheader("Sua ideia, executada por uma rede de agentes.")
-st.write("_Descreva seu objetivo. Nossa colmeia de IAs vai planejar, criar, criticar e auditar a entrega em tempo real._")
+st.write("_Sistema operando em Malha de Redundância Quádrupla Automática._")
 
 st.markdown("---")
 
@@ -38,148 +38,163 @@ def carregar_contexto_extensao(nome_arquivo):
             return ""
     return ""
 
-def chamar_gemini_direto(api_keys_str, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST com autenticação segura via Header para chaves AQ."""
-    lista_chaves = [k.strip() for k in str(api_keys_str).split(",") if k.strip()]
-    
+def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
+    """Orquestrador resiliente que varre todas as chaves disponíveis em cascata (Failover Real)"""
     palavras_bloqueadas = ["act as", "atue como", "ignore as regras", "system prompt"]
     if any(palavra in prompt_usuario.lower() for palavra in palavras_bloqueadas):
         return "[Erro de Segurança]: Comando inválido."
 
-    host_limpo = "://googleapis.com"
-    payload = json.dumps({
-        "contents": [{
-            "parts": [{"text": f"INSTRUÇÃO: {prompt_sistema}\n\nENTRADA: {prompt_usuario}"}]
-        }],
-        "generationConfig": {"temperature": 0.3}
-    })
+    # Mapeamento dinâmico de todos os seus provedores ativos
+    provedores = [
+        {
+            "nome": "NVIDIA",
+            "key": st.secrets.get("NVIDIA_API_KEY") or os.getenv("NVIDIA_API_KEY"),
+            "host": "://nvidia.com",
+            "url": "/v1/chat/completions",
+            "payload_func": lambda s, u: {"model": "meta/llama-3.3-70b-instruct", "messages": [{"role": "system", "content": s}, {"role": "user", "content": u}], "temperature": 0.3},
+            "headers_func": lambda k: {"Content-Type": "application/json", "Authorization": f"Bearer {k.strip()}"},
+            "parse_func": lambda d: json.loads(d)["choices"]["message"]["content"]
+        },
+        {
+            "nome": "OpenRouter",
+            "key": st.secrets.get("OPENROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY"),
+            "host": "openrouter.ai",
+            "url": "/api/v1/chat/completions",
+            "payload_func": lambda s, u: {"model": "meta-llama/llama-3.3-70b-instruct:free", "messages": [{"role": "system", "content": s}, {"role": "user", "content": u}], "temperature": 0.3},
+            "headers_func": lambda k: {"Content-Type": "application/json", "Authorization": f"Bearer {k.strip()}"},
+            "parse_func": lambda d: json.loads(d)["choices"]["message"]["content"]
+        },
+        {
+            "nome": "Groq",
+            "key": st.secrets.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY"),
+            "host": "://groq.com",
+            "url": "/openai/v1/chat/completions",
+            "payload_func": lambda s, u: {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": s}, {"role": "user", "content": u}], "temperature": 0.3},
+            "headers_func": lambda k: {"Content-Type": "application/json", "Authorization": f"Bearer {k.strip()}"},
+            "parse_func": lambda d: json.loads(d)["choices"]["message"]["content"]
+        },
+        {
+            "nome": "Gemini",
+            "key": str(st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")).split(",")[0].strip(),
+            "host": "://googleapis.com",
+            "url": "/v1/models/gemini-2.0-flash:generateContent",
+            "payload_func": lambda s, u: {"contents": [{"parts": [{"text": f"INSTRUÇÃO: {s}\n\nENTRADA: {u}"}]}], "generationConfig": {"temperature": 0.3}},
+            "headers_func": lambda k: {"Content-Type": "application/json", "x-goog-api-key": k.replace("https://", "").replace("http://", "").replace("//", "")},
+            "parse_func": lambda d: json.loads(d)["candidates"]["content"]["parts"]["text"]
+        }
+    ]
 
-    for api_key in lista_chaves:
-        api_key_limpa = api_key.replace("https://", "").replace("http://", "").replace("//", "")
-        tentativas = 2
-        
-        for tentativa in range(tentativas):
-            try:
-                conn = http.client.HTTPSConnection(host_limpo, timeout=60)
+    # Varre a lista em cascata. Se um falhar, o próximo assume na hora
+    for prov in provedores:
+        if not prov["key"] or "não localizada" in str(prov["key"]).lower() or str(prov["key"]) == "None" or not str(prov["key"]).strip():
+            continue
+            
+        try:
+            conn = http.client.HTTPSConnection(prov["host"], timeout=45)
+            headers = prov["headers_func"](prov["key"])
+            headers["Connection"] = "keep-alive"
+            
+            payload = json.dumps(prov["payload_func"](prompt_sistema, prompt_usuario))
+            
+            time.sleep(1) # Respiro regulatório
+            conn.request("POST", prov["url"], payload, headers)
+            res = conn.getresponse()
+            
+            data = res.read().decode("utf-8")
+            conn.close()
+            
+            if res.status == 200:
+                return prov["parse_func"](data)
                 
-                # 🚀 AUTENTICAÇÃO ATUALIZADA: Envia o token AQ no Header sem corromper a requisição
-                headers = {
-                    "Content-Type": "application/json",
-                    "Connection": "keep-alive",
-                    "x-goog-api-key": api_key_limpa
-                }
+            # Se der qualquer erro de cota (como 429), pula para a próxima chave
+            continue
                 
-                time.sleep(1.5)
-                
-                url = "/v1/models/gemini-2.0-flash:generateContent"
-                conn.request("POST", url, payload, headers)
-                res = conn.getresponse()
-                data = res.read().decode("utf-8")
-                conn.close()
-                
-                if res.status == 429:
-                    if "quota" in data.lower() or "limit" in data.lower() or "exceeded" in data.lower():
-                        break
-                    time.sleep(4)
-                    continue
-                    
-                if res.status == 200:
-                    return json.loads(data)["candidates"]["content"]["parts"]["text"]
-                return f"[Erro HTTP {res.status}]: {data[:50]}"
-                
-            except Exception:
-                if tentativa < tentativas - 1:
-                    time.sleep(2)
-                    continue
-                    
-    return "[Erro Crítico]: Falha de cota diária ou validação das chaves nos servidores do Google."
+        except Exception:
+            continue
+            
+    return "[Erro Crítico Total]: Todas as malhas de IA (NVIDIA, OpenRouter, Groq e Gemini) falharam ou estão sem chaves válidas configuradas."
 
 if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
-        gemini_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else os.getenv("GEMINI_API_KEY")
+        st.write("### ⚙️ Debate e Orquestração da Synapse em Tempo Real:")
         
-        if not gemini_key:
-            st.error("Chave GEMINI_API_KEY não localizada nos Secrets do Streamlit.")
-        else:
-            st.write("### ⚙️ Debate e Orquestração da Synapse em Tempo Real:")
+        ctx_manager = carregar_contexto_extensao("ia02_executor_manager.py")
+        ctx_monitor = carregar_contexto_extensao("ia02_executor_monitor.py")
+        ctx_generator = carregar_contexto_extensao("ia02_executor_content_generator.py")
+        
+        # --- CASO 1: IA01 MEDIADOR ---
+        with st.status("🧠 IA01 [Mediador] analisando e montando briefing técnico...", expanded=True) as s1:
+            p_sistema_1 = "Você é o IA01 Mediador. Escreva um briefing enxuto com 3 requisitos baseados no objetivo final do usuário (seja texto, literatura, tese ou código)."
+            briefing = orquestrar_chamada_rest(p_sistema_1, tarefa_input)
+            st.write(briefing)
+            s1.update(label="🧠 IA01 [Mediador] concluiu o Briefing!", state="complete")
+        
+        if "[Erro" not in briefing:
+            regras_ia2 = f"\nDiretrizes Administrativas:\n{ctx_manager}\nManual de Qualidade:\n{ctx_monitor}\nGerador Base:\n{ctx_generator}"
             
-            ctx_manager = carregar_contexto_extensao("ia02_executor_manager.py")
-            ctx_monitor = carregar_contexto_extensao("ia02_executor_monitor.py")
-            ctx_generator = carregar_contexto_extensao("ia02_executor_content_generator.py")
+            p_sistema_2 = f"Você é o IA02 Executor Sênior. Siga estas regras internas: {regras_ia2}\nExecute e redija o conteúdo final solicitado no briefing. Se o usuário pediu código, fornecer código Python puro dentro de blocos markdown. Se ele pediu uma tese, livro ou história, entregue em formato de texto limpo, rico e estruturado em Markdown."
+            p_sistema_3 = "Você é o IA03 Crítico Geral. Avalie a entrega enviada pelo Executor e aponte erros estruturais, conceituais ou de qualidade de conteúdo de forma enxuta."
+            p_sistema_4 = "Você é o IA04 Supervisor. Analise a entrega e a crítica do IA03. Responda estritamente 'APROVADO' se o material atende perfeitamente ao briefing, ou 'REPROVADO' se ele ainda precisa passar por refinamento."
             
-            # --- CASO 1: IA01 MEDIADOR ---
-            with st.status("🧠 IA01 [Mediador] está fazendo a triagem e estruturando o briefing...", expanded=True) as s1:
-                p_sistema_1 = "Você é o IA01 Mediador. Escreva um briefing enxuto com 3 requisitos baseados no objetivo final do usuário (seja texto, literatura, tese ou código)."
-                briefing = chamar_gemini_direto(gemini_key, p_sistema_1, tarefa_input)
-                st.write(briefing)
-                s1.update(label="🧠 IA01 [Mediador] concluiu o Briefing!", state="complete")
+            # Geração da versão inicial
+            with st.status("🛠️ IA02 [Executor] gerando versão inicial da entrega...", expanded=True) as s2:
+                codigo_v1 = orquestrar_chamada_rest(p_sistema_2, briefing)
+                st.markdown(codigo_v1)
+                s2.update(label="🛠️ IA02 [Executor] gerou a Versão Inicial!", state="complete")
+
+            # --- O LOOPING REAL SUPERVISIONADO ---
+            loop_ativo = True
+            rodada = 1
+            max_rodadas = 2
             
-            if "[Erro" not in briefing:
-                regras_ia2 = f"\nDiretrizes Administrativas:\n{ctx_manager}\nManual de Qualidade:\n{ctx_monitor}\nGerador Base:\n{ctx_generator}"
+            while loop_ativo and rodada <= max_rodadas and "[Erro" not in codigo_v1:
+                st.markdown(f"#### 🔄 Rodada {rodada} de Ajuste")
                 
-                p_sistema_2 = f"Você é o IA02 Executor Sênior. Siga estas regras internas: {regras_ia2}\nExecute e redija o conteúdo final solicitado no briefing. Se o usuário pediu código, forneça código. Se ele pediu uma tese, livro ou história, entregue em formato de texto limpo, rico e estruturado em Markdown."
-                p_sistema_3 = "Você é o IA03 Crítico Geral. Avalie a entrega enviada pelo Executor e aponte erros estruturais, conceituais ou de qualidade de conteúdo de forma enxuta."
-                p_sistema_4 = "Você é o IA04 Supervisor. Analise a entrega e a crítica do IA03. Responda estritamente 'APROVADO' se o material atende perfeitamente ao briefing, ou 'REPROVADO' se ele ainda precisa passar por refinamento."
+                with st.status(f"🗺️ Rodada {rodada}: IA03 [Crítico] analisando entrega atual...", expanded=True) as s3:
+                    critica = orquestrar_chamada_rest(p_sistema_3, codigo_v1)
+                    st.write(critica)
+                    s3.update(label=f"🗺️ Rodada {rodada}: Análise do Crítico Emitida!", state="complete")
                 
-                # Geração da versão inicial
-                with st.status("🛠️ IA02 [Executor] gerando versão inicial da entrega...", expanded=True) as s2:
-                    codigo_v1 = chamar_gemini_direto(gemini_key, p_sistema_2, briefing)
-                    st.markdown(codigo_v1)
-                    s2.update(label="🛠️ IA02 [Executor] gerou a Versão Inicial!", state="complete")
+                with st.status(f"⚖️ Rodada {rodada}: IA04 [Supervisor] julgando qualidade...", expanded=True) as s_super:
+                    contexto_supervisao = f"Briefing:\n{briefing}\n\nEntrega:\n{codigo_v1}\n\nCrítica:\n{critica}"
+                    veredito = orquestrar_chamada_rest(p_sistema_4, contexto_supervisao).strip().upper()
+                    st.write(f"Veredito do Supervisor: **{veredito}**")
+                    
+                    if "APROVADO" in veredito:
+                        s_super.update(label=f"✅ Rodada {rodada}: Supervisor aprovou a solução!", state="complete")
+                        loop_ativo = False
+                    else:
+                        s_super.update(label=f"⚠️ Rodada {rodada}: Supervisor reprovou! Forçando refatoração.", state="complete")
+                        with st.status(f"🛠️ Rodada {rodada}: IA02 [Executor] aplicando correções...", expanded=True) as s_exec_fix:
+                            prompt_reajuste = f"Briefing:\n{briefing}\n\nEntrega Atual:\n{codigo_v1}\n\nErros para Corrigir:\n{critica}"
+                            codigo_v1 = orquestrar_chamada_rest(p_sistema_2, prompt_reajuste)
+                            st.markdown(codigo_v1)
+                            s_exec_fix.update(label=f"🛠️ Rodada {rodada}: Material Reescrito pelo Executor!", state="complete")
+                        rodada += 1
 
-                # --- O LOOPING REAL SUPERVISIONADO ---
-                loop_ativo = True
-                rodada = 1
-                max_rodadas = 2
+            if "[Erro" not in codigo_v1:
+                # --- CASO 4: IA05 AUDITOR ---
+                with st.status("⚖️ IA05 [Auditor] revisando a qualidade final da entrega...", expanded=True) as s4:
+                    p_sistema_5 = "Você é o IA05 Auditor. Analise a entrega final gerada pelo Executor e aponte se ela está segura, coesa e funcional."
+                    auditoria = orquestrar_chamada_rest(p_sistema_5, codigo_v1)
+                    st.write(auditoria)
+                    s4.update(label="⚖️ IA05 [Auditor] finalizou a Auditoria!", state="complete")
+
+                st.success("🎉 Processo de Orquestração Concluído pela Colmeia!")
                 
-                while loop_ativo and rodada <= max_rodadas and "[Erro" not in codigo_v1:
-                    st.markdown(f"#### 🔄 Rodada {rodada} de Ajuste")
-                    
-                    with st.status(f"🗺️ Rodada {rodada}: IA03 [Crítico] analisando entrega atual...", expanded=True) as s3:
-                        critica = chamar_gemini_direto(gemini_key, p_sistema_3, codigo_v1)
-                        st.write(critica)
-                        s3.update(label=f"🗺️ Rodada {rodada}: Análise do Crítico Emitida!", state="complete")
-                    
-                    with st.status(f"⚖️ Rodada {rodada}: IA04 [Supervisor] julgando qualidade...", expanded=True) as s_super:
-                        contexto_supervisao = f"Briefing:\n{briefing}\n\nEntrega:\n{codigo_v1}\n\nCrítica:\n{critica}"
-                        veredito = chamar_gemini_direto(gemini_key, p_sistema_4, contexto_supervisao).strip().upper()
-                        st.write(f"Veredito do Supervisor: **{veredito}**")
-                        
-                        if "APROVADO" in veredito:
-                            s_super.update(label=f"✅ Rodada {rodada}: Supervisor aprovou a solução!", state="complete")
-                            loop_ativo = False
-                        else:
-                            s_super.update(label=f"⚠️ Rodada {rodada}: Supervisor reprovou! Forçando refatoração.", state="complete")
-                            with st.status(f"🛠️ Rodada {rodada}: IA02 [Executor] aplicando correções...", expanded=True) as s_exec_fix:
-                                prompt_reajuste = f"Briefing:\n{briefing}\n\nEntrega Atual:\n{codigo_v1}\n\nErros para Corrigir:\n{critica}"
-                                codigo_v1 = chamar_gemini_direto(gemini_key, p_sistema_2, prompt_reajuste)
-                                st.markdown(codigo_v1)
-                                s_exec_fix.update(label=f"🛠️ Rodada {rodada}: Material Reescrito pelo Executor!", state="complete")
-                            rodada += 1
-
-                if "[Erro" not in codigo_v1:
-                    # --- CASO 4: IA05 AUDITOR ---
-                    with st.status("⚖️ IA05 [Auditor] revisando a qualidade final da entrega...", expanded=True) as s4:
-                        p_sistema_5 = "Você é o IA05 Auditor. Analise a entrega final gerada pelo Executor e aponte se ela está segura, coesa e funcional."
-                        auditoria = chamar_gemini_direto(gemini_key, p_sistema_5, codigo_v1)
-                        st.write(auditoria)
-                        s4.update(label="⚖️ IA05 [Auditor] finalizou a Auditoria!", state="complete")
-
-                    st.success("🎉 Processo de Orquestração Concluído pela Colmeia!")
-                    
-                    # Resultado Final Consolidado Dinâmico
-                    st.write("### 🏁 Entrega Final Homologada:")
-                    st.info(f"**Requisitos do Projeto:**\n{briefing}")
-                    st.markdown("**Conteúdo Final Desenvolvido:**")
-                    st.markdown(codigo_v1)
-                else:
-                    st.error(codigo_v1)
+                # Resultado Final Consolidado Dinâmico
+                st.write("### 🏁 Entrega Final Homologada:")
+                st.info(f"**Requisitos do Projeto:**\n{briefing}")
+                st.markdown("**Conteúdo Final Desenvolvido:**")
+                st.markdown(codigo_v1)
             else:
-                st.error(briefing)
+                st.error(codigo_v1)
+        else:
+            st.error(briefing)
     else:
         st.warning("Por favor, descreva o que você deseja realizar.")
 
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura da Rede"):
-    st.caption("Synapse 24 Engine • Malha Multi-Chave Poliglota • Google AI Studio Layer")
+    st.caption("Synapse 24 OS Engine • Malha Crítica de Redundância Quádrupla Ativa • Custo Zero")
     
