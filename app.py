@@ -29,7 +29,7 @@ st.markdown("---")
 
 st.write("### 🎬 Iniciar Nova Orquestração")
 # Placeholder alterado conforme instrução do Diretor Eduardo
-tarefa_input = st.text_area("O que você precisa realizar hoje?", placeholder="Crie um app para vendas", height=150)
+tarefa_input = st.text_area("O que você precisa realizar hoje?", placeholder="Ex: Crie um app para vendas", height=150)
 
 def carregar_contexto_extensao(nome_arquivo):
     caminho = os.path.join(PATH_SRC, "agents", nome_arquivo)
