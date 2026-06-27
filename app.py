@@ -10,14 +10,13 @@ PATH_SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), 'src'))
 if PATH_SRC not in sys.path:
     sys.path.append(PATH_SRC)
 
-# Carregamento Dinâmico com Quebra de Cache Total (Forçando v6)
+# Carregamento Dinâmico Estabilizado
 caminho_rest = os.path.join(PATH_SRC, "rest_client.py")
 if os.path.exists(caminho_rest):
     especificacao = importlib.util.spec_from_file_location("rest_client", caminho_rest)
     rest_client = importlib.util.module_from_spec(especificacao)
     especificacao.loader.exec_module(rest_client)
-    # Linha chaveada para o motor atualizado com contingência local
-    orquestrar_chamada_rest = rest_client.executar_chamada_rest_v6 if hasattr(rest_client, 'executar_chamada_rest_v6') else rest_client.executar_chamada_rest_v5
+    orquestrar_chamada_rest = rest_client.executar_chamada_rest_v6
 else:
     st.error(f"🚨 Arquivo critico nao encontrado em: {caminho_rest}")
     st.stop()
@@ -103,52 +102,52 @@ if st.button("Dar vida ao projeto", type="primary"):
         briefing = ""
         lacunas = []
         
+        # 🔄 LOOP DE VALIDAÇÃO PROGRAMÁTICA LEVE COM SPINNER IMUNE A TRAVAMENTOS
         while loop_mediador and rodada_mediador <= max_rodadas_mediador:
-            time.sleep(3)
+            time.sleep(1)
             
-            with st.status(f"🧠 [Rodada {rodada_mediador}] IA01 [Mediador] estruturando briefing...", expanded=True) as s1:
+            with st.spinner(f"🧠 [Rodada {rodada_mediador}] IA01 [Mediador] estruturando briefing..."):
                 prompt_envio = tarefa_input if rodada_mediador == 1 else f"{tarefa_input} \n\n⚠️ REPROVADO: Falhou nos criterios SMART. Insira metricas (%) e cronogramas obrigatoriamente."
-                
                 briefing = orquestrar_chamada_rest(p_sistema_1, prompt_envio)
                 
-                if briefing.startswith("RAIZ_ERRO:"):
-                    s1.update(label="💥 Falha de comunicacao na rede!", state="error")
-                    st.error(briefing)
-                    sistema_feedback.processar_e_salvar_feedback(tarefa_input, False, rodada_mediador, ["Falha de Rede"])
-                    loop_mediador = False
-                    break
+            if briefing.startswith("RAIZ_ERRO:"):
+                st.error(f"💥 Falha de comunicacao na rede: {briefing}")
+                sistema_feedback.processar_e_salvar_feedback(tarefa_input, False, rodada_mediador, ["Falha de Rede"])
+                loop_mediador = False
+                break
+            
+            is_smart, lacunas = validador_smart.avaliar_briefing_smart(briefing)
+            
+            st.markdown(f"### 🧠 Briefing Gerado (Rodada {rodada_mediador})")
+            st.write(briefing)
+            
+            if is_smart or "CONTINGÊNCIA" in briefing:
+                st.success("✅ Briefing SMART Aprovado pelo Validador!")
+                loop_mediador = False
+            else:
+                st.warning(f"⚠️ Briefing Reprovado. Lacunas: {', '.join(lacunas)}")
+                st.write("_Forçando re-generation automatica na proxima rodada..._")
                 
-                is_smart, lacunas = validador_smart.avaliar_briefing_smart(briefing)
-                
-                if is_smart or "CONTINGÊNCIA" in briefing:
-                    st.write(briefing)
-                    s1.update(label="✅ IA01 [Mediador] Briefing SMART Aprovado!", state="complete")
-                    loop_mediador = False
-                else:
-                    st.warning(f"⚠️ Briefing Reprovado (Rodada {rodada_mediador}). Lacunas: {', '.join(lacunas)}")
-                    s1.update(label="⚠️ Briefing incompleto. Refatorando...", state="error")
-                    
             rodada_mediador += 1
 
+        # EXECUÇÃO DO EXECUTOR SÊNIOR
         if briefing and not briefing.startswith("RAIZ_ERRO:"):
-            time.sleep(3)
-            with st.status("🛠️ IA02 [Executor Sênior] gerando plano tecnico...", expanded=True) as s2:
+            with st.spinner("🛠️ IA02 [Executor Sênior] gerando plano tecnico final..."):
                 p_sistema_2 = "Voce e o IA02 Executor Senior. Siga o briefing validado e estruture o plano final em Markdown."
                 codigo_v1 = orquestrar_chamada_rest(p_sistema_2, briefing)
                 
-                if codigo_v1.startswith("RAIZ_ERRO:"):
-                    s2.update(label="💥 Falha no Executor!", state="error")
-                    st.error(codigo_v1)
-                    sistema_feedback.processar_e_salvar_feedback(tarefa_input, False, rodada_mediador, ["Falha no Executor"])
-                else:
-                    st.markdown(codigo_v1)
-                    s2.update(label="🛠️ IA02 [Executor Sênior] concluido!", state="complete")
-                    sistema_feedback.processar_e_salvar_feedback(tarefa_input, True, rodada_mediador, lacunas)
-                    st.success("🎉 Processo homologado e registrado no Ciclo de Retroalimentação!")
+            if codigo_v1.startswith("RAIZ_ERRO:"):
+                st.error(f"💥 Falha no Executor: {codigo_v1}")
+                sistema_feedback.processar_e_salvar_feedback(tarefa_input, False, rodada_mediador, ["Falha no Executor"])
+            else:
+                st.markdown("### 🏁 Plano Tecnico Final Homologado")
+                st.markdown(codigo_v1)
+                sistema_feedback.processar_e_salvar_feedback(tarefa_input, True, rodada_mediador, lacunas)
+                st.success("🎉 Processo homologado e registrado no Ciclo de Retroalimentação!")
     else:
         st.warning("Por favor, descreva o que deseja realizar.")
 
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura"):
-    st.caption("Synapse 24 OS Engine • MediadorOptimizer Ativo • Threshold: 3 • Anti-429")
+    st.caption("Synapse 24 OS Engine • MediadorOptimizer Ativo • Componentes Leves • Anti-429")
     
