@@ -9,14 +9,14 @@ PATH_SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), 'src'))
 if PATH_SRC not in sys.path:
     sys.path.append(PATH_SRC)
 
-# Carregamento Dinâmico com Quebra de Cache
+# Carregamento Dinâmico com Quebra de Cache Total
 caminho_rest = os.path.join(PATH_SRC, "rest_client.py")
 if os.path.exists(caminho_rest):
     especificacao = importlib.util.spec_from_file_location("rest_client", caminho_rest)
     rest_client = importlib.util.module_from_spec(especificacao)
     especificacao.loader.exec_module(rest_client)
-    # Linha alterada para apontar para o novo motor v4
-    orquestrar_chamada_rest = rest_client.executar_chamada_rest_v4
+    # Aponta para o novo motor enxuto v5
+    orquestrar_chamada_rest = rest_client.executar_chamada_rest_v5
 else:
     st.error(f"🚨 Arquivo crítico não encontrado em: {caminho_rest}")
     st.stop()
@@ -24,7 +24,7 @@ else:
 st.set_page_config(page_title="Synapse 24 OS", page_icon="🧠", layout="centered")
 st.title("🧠 Synapse 24 OS")
 st.subheader("Sua ideia, executada por uma rede de agentes.")
-st.write("_Sistema operando com Limpeza de Cache de Rede Ativa._")
+st.write("_Sistema operando em Malha Enxuta e Gratuita: Groq + Gemini._")
 st.markdown("---")
 
 st.write("### 🎬 Iniciar Nova Orquestração")
@@ -143,5 +143,5 @@ if st.button("Dar vida ao projeto", type="primary"):
 
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura"):
-    st.caption("Synapse 24 OS Engine • Redundância Quádrupla Ativa • Cache Reset")
+    st.caption("Synapse 24 OS Engine • Groq + Gemini Loop • Custo Zero")
     
