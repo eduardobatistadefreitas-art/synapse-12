@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import sys
 import os
@@ -10,10 +9,13 @@ if PATH_SRC not in sys.path:
     sys.path.append(PATH_SRC)
 
 # Importação limpa pós-alinhamento de caminhos
-from rest_client import orquestrar_chamada_rest
+try:
+    from rest_client import orquestrar_chamada_rest
+except ModuleNotFoundError:
+    from src.rest_client import orquestrar_chamada_rest
 
-st.set_page_config(page_title="Synapse 12 OS", page_icon="🧠", layout="centered")
-st.title("🧠 Synapse 12 OS")
+st.set_page_config(page_title="Synapse 24 OS", page_icon="🧠", layout="centered")
+st.title("🧠 Synapse 24 OS")
 st.subheader("Sua ideia, executada por uma rede de agentes.")
 st.write("_Sistema operando em Malha de Redundância Quádrupla Automática._")
 st.markdown("---")
@@ -27,7 +29,7 @@ def carregar_contexto_extensao(nome_arquivo):
         try:
             with open(caminho, "r", encoding="utf-8") as f:
                 return "".join([l for l in f.readlines() if not l.startswith("import")][:20])
-        except Exception: 
+        except Exception:
             return ""
     return ""
 
@@ -45,6 +47,7 @@ def exibir_diagnostico_painel(resultado_erro):
 if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
         st.write("### ⚙️ Debate e Orquestração em Tempo Real:")
+        
         ctx_manager = carregar_contexto_extensao("ia02_executor_manager.py")
         ctx_monitor = carregar_contexto_extensao("ia02_executor_monitor.py")
         ctx_generator = carregar_contexto_extensao("ia02_executor_content_generator.py")
@@ -74,11 +77,12 @@ if st.button("Dar vida ao projeto", type="primary"):
                 else:
                     st.markdown(codigo_v1)
                     s2.update(label="🛠️ IA02 [Executor] gerou a Versão Inicial!", state="complete")
-
+            
             loop_ativo, rodada, max_rodadas = True, 1, 2
             while loop_ativo and rodada <= max_rodadas and not codigo_v1.startswith("RAIZ_ERRO:") and "[Erro" not in codigo_v1:
                 st.markdown(f"#### 🔄 Rodada {rodada} de Ajuste")
-                with st.status(f"🗺️ Rodada {rodada}: IA03 [Crítico] analisando entrega...", expanded=True) as s3:
+                
+                with st.status(f"📝 Rodada {rodada}: IA03 [Crítico] analisando entrega...", expanded=True) as s3:
                     critica = orquestrar_chamada_rest(p_sistema_3, codigo_v1)
                     if critica.startswith("RAIZ_ERRO:"):
                         s3.update(label="💥 Falha no Crítico!", state="error")
@@ -86,7 +90,7 @@ if st.button("Dar vida ao projeto", type="primary"):
                         loop_ativo = False
                     else:
                         st.write(critica)
-                        s3.update(label=f"🗺️ Rodada {rodada}: Análise do Crítico Emitida!", state="complete")
+                        s3.update(label=f"📝 Rodada {rodada}: Análise do Crítico Emitida!", state="complete")
                 
                 if not critica.startswith("RAIZ_ERRO:") and loop_ativo:
                     with st.status(f"⚖️ Rodada {rodada}: IA04 [Supervisor] julgando...", expanded=True) as s_super:
@@ -104,6 +108,7 @@ if st.button("Dar vida ao projeto", type="primary"):
                                 loop_ativo = False
                             else:
                                 s_super.update(label=f"⚠️ Rodada {rodada}: Reprovado! Refatorando.", state="complete")
+                                
                                 with st.status(f"🛠️ Rodada {rodada}: IA02 corrigindo...", expanded=True) as s_exec_fix:
                                     prompt_reajuste = f"Briefing:\n{briefing}\n\nEntrega:\n{codigo_v1}\n\nErros:\n{critica}"
                                     codigo_v1 = orquestrar_chamada_rest(p_sistema_2, prompt_reajuste)
@@ -113,12 +118,13 @@ if st.button("Dar vida ao projeto", type="primary"):
                                     else:
                                         st.markdown(codigo_v1)
                                         s_exec_fix.update(label=f"🛠️ Rodada {rodada}: Reescrito!", state="complete")
-                                rodada += 1
-
+                rodada += 1
+            
             if not codigo_v1.startswith("RAIZ_ERRO:") and "[Erro" not in codigo_v1:
                 with st.status("⚖️ IA05 [Auditor] revisando qualidade final...", expanded=True) as s4:
                     p_sistema_5 = "Você é o IA05 Auditor. Analise a entrega final e aponte se ela está segura e coesa."
                     auditoria = orquestrar_chamada_rest(p_sistema_5, codigo_v1)
+                    
                     if auditoria.startswith("RAIZ_ERRO:"):
                         s4.update(label="💥 Falha no Auditor!", state="error")
                         exibir_diagnostico_painel(auditoria)
@@ -131,10 +137,10 @@ if st.button("Dar vida ao projeto", type="primary"):
                     st.write("### 🏁 Entrega Final Homologada:")
                     st.info(f"**Requisitos:**\n{briefing}")
                     st.markdown(codigo_v1)
-    else: 
+    else:
         st.warning("Por favor, descreva o que deseja realizar.")
 
 st.markdown("---")
-with st.expander("⚙️ Ver Arquitetura"): 
+with st.expander("⚙️ Ver Arquitetura"):
     st.caption("Synapse 24 OS Engine • Redundância Quádrupla Ativa • Custo Zero")
     
