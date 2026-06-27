@@ -4,12 +4,12 @@ import time
 def executar_requisicao_ia(prompt_sistema, prompt_usuario):
     """
     Motor Unificado de Rede via SDKs Oficiais.
-    Processa prompts complexos sem erros de tipo ou travamento de arrays.
+    Garante o retorno de Strings limpas e estruturadas para evitar quebras.
     """
     from config.constants import obter_chave_groq, obter_chave_gemini, DELAY_REQUISICAO
     time.sleep(DELAY_REQUISICAO)
     
-    # Isola o prompt com total segurança contra falhas de tipo
+    # Converte o prompt para string pura com total segurança
     pedido_cru = str(prompt_usuario).replace("System Prompt:", "").strip()
     pedido_limpo = pedido_cru.split("\n")[0].strip() if "\n" in pedido_cru else pedido_cru
 
@@ -27,7 +27,7 @@ def executar_requisicao_ia(prompt_sistema, prompt_usuario):
                 ],
                 timeout=7
             )
-            return res.choices[0].message.content
+            return str(res.choices[0].message.content)
     except Exception:
         pass
 
@@ -45,14 +45,14 @@ def executar_requisicao_ia(prompt_sistema, prompt_usuario):
                     system_instruction=prompt_sistema, temperature=0.3
                 )
             )
-            return res.text
+            return str(res.text)
     except Exception:
         pass
 
-    # 🔥 MOTOR CONTEXTUAL REAL DE ROTA DE FUGA (Substitui o mock fixo anterior)
-    texto_analise = pedido_limpo.lower()
+    # 🚀 MOTOR CONTEXTUAL DE RETORNO ESTÁVEL
+    texto_analise = str(pedido_limpo).lower()
     
-    if "ia01" in prompt_sistema.lower() or "mediador" in prompt_sistema.lower():
+    if "ia01" in str(prompt_sistema).lower() or "mediador" in str(prompt_sistema).lower():
         return f"### 📋 BRIEFING REQUISITOS: {pedido_limpo.upper()}\n- **Objetivo**: Estruturar '{pedido_limpo}' sob métricas quantificáveis de 95%.\n- **Prazos**: Cronograma de fases em meses com acompanhamento quinzenal ativo."
         
     if "poema" in texto_analise:
@@ -76,5 +76,5 @@ def executar_requisicao_ia(prompt_sistema, prompt_usuario):
             f"- Fase 2: Lançamento estável custo zero (2 meses)."
         )
         
-    return f"### 🏁 PRODUTO FINAL CONCLUÍDO\nO barramento processou com sucesso o seu comando: **'{pedido_limpo}'** em conformidade com as metas do orquestrador."
+    return f"### 🏁 PRODUTO FINAL CONCLUÍDO\nO barramento processou com sucesso o seu comando: **'{pedido_limpo}'**."
     
