@@ -1,48 +1,42 @@
-import http.client
-import json
+import urllib.request
 import urllib.parse
+import json
 import streamlit as st
 
-def requisitar_api(url_completa, headers, payload, timeout=15):
+def requisitar_api_v2(url_completa, headers, payload, timeout=15):
     """
-    Executa a requisição HTTP tratando strings de URL de forma robusta.
-    Adiciona o header Host para corrigir falhas de DNS no Streamlit Cloud.
+    Executa a requisição HTTP usando urllib.request nativo.
+    Automatiza headers de Host, tamanho de conteúdo e resolve falhas de DNS.
     """
     try:
         if not url_completa.startswith(('http://', 'https://')):
             url_completa = 'https://' + url_completa
             
-        parsed_url = urllib.parse.urlparse(url_completa)
-        host = parsed_url.netloc
-        path = parsed_url.path if parsed_url.path else "/"
-        if parsed_url.query:
-            path += "?" + parsed_url.query
-
-        if ":" in host:
-            hostname, port = host.split(":", 1)
-            if not port.isdigit():
-                host = hostname
-
-        # Injeta o Host explicitamente nos headers para resolver o DNS
-        headers["Host"] = host
-
-        conexao = http.client.HTTPSConnection(host, timeout=timeout)
-        conexao.request("POST", path, body=json.dumps(payload), headers=headers)
+        dados_bytes = json.dumps(payload).encode('utf-8')
         
-        resposta = conexao.getresponse()
-        status_code = resposta.status
-        corpo = resposta.read().decode('utf-8')
-        conexao.close()
+        # Garante cabeçalhos mínimos exigidos pelas APIs de produção
+        headers["Content-Type"] = "application/json"
+        headers["Content-Length"] = str(len(dados_bytes))
         
-        return status_code, corpo
+        req = urllib.request.Request(url_completa, data=dados_bytes, headers=headers, method="POST")
+        
+        with urllib.request.urlopen(req, timeout=timeout) as resposta:
+            status_code = resposta.status
+            corpo = resposta.read().decode('utf-8')
+            return status_code, corpo
 
+    except urllib.error.HTTPError as e:
+        # Captura erros retornados pelo servidor (ex: 401, 429, 500)
+        corpo_erro = e.read().decode('utf-8')
+        return e.code, corpo_erro
     except Exception as e:
+        # Captura falhas de conexão local ou rede
         return 500, json.dumps({"error": {"message": str(e), "code": 500}})
 
 def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
     """
-    Orquestrador com Malha de Redundância Quádrupla Automática.
-    Corrigido contra falhas de DNS corporativo.
+    Orquestrador com Malha de Redundância Quádrupla Automática via urllib.
+    Rotas calibradas e blindadas contra erros de infraestrutura do Streamlit Cloud.
     """
     logs_erros = []
 
@@ -57,11 +51,8 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
         "max_tokens": 1024
     }
     key_nv = st.secrets.get("NVIDIA_API_KEY", "")
-    headers_nv = {
-        "Authorization": f"Bearer {key_nv}",
-        "Content-Type": "application/json"
-    }
-    status, res = requisitar_api("://nvidia.com", headers_nv, payload_nv)
+    headers_nv = {"Authorization": f"Bearer {key_nv}"}
+    status, res = requisitar_api_v2("://nvidia.com", headers_nv, payload_nv)
     if status == 200:
         try:
             return json.loads(res)["choices"]["message"]["content"]
@@ -79,11 +70,8 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
         ]
     }
     key_or = st.secrets.get("OPENROUTER_API_KEY", "")
-    headers_or = {
-        "Authorization": f"Bearer {key_or}",
-        "Content-Type": "application/json"
-    }
-    status, res = requisitar_api("openrouter.ai/api/v1/chat/completions", headers_or, payload_or)
+    headers_or = {"Authorization": f"Bearer {key_or}"}
+    status, res = requisitar_api_v2("openrouter.ai/api/v1/chat/completions", headers_or, payload_or)
     if status == 200:
         try:
             return json.loads(res)["choices"]["message"]["content"]
@@ -101,11 +89,8 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
         ]
     }
     key_groq = st.secrets.get("GROQ_API_KEY", "")
-    headers_groq = {
-        "Authorization": f"Bearer {key_groq}",
-        "Content-Type": "application/json"
-    }
-    status, res = requisitar_api("api.groq.com/openai/v1/chat/completions", headers_groq, payload_groq)
+    headers_groq = {"Authorization": f"Bearer {key_groq}"}
+    status, res = requisitar_api_v2("://groq.com", headers_groq, payload_groq)
     if status == 200:
         try:
             return json.loads(res)["choices"]["message"]["content"]
@@ -114,7 +99,12 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
     else:
         logs_erros.append(f"💥 Groq Erro (Status {status}): {res[:120]}")
 
-    # 4. Gemini (OpenAI Compatibility Gateway)
+    # 4. Gemini (Endpoint Oficial do Google AI Studio para Chat Completions)
+    key_gemini = st.secrets.get("GEMINI_API_KEY", "")
+    # Tratamento caso a string contenha multiplas chaves separadas por virgula
+    if "," in key_gemini:
+        key_gemini = key_gemini.split(",")[0].strip()
+        
     payload_gemini = {
         "model": "gemini-2.5-flash",
         "messages": [
@@ -122,12 +112,9 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
             {"role": "user", "content": prompt_usuario}
         ]
     }
-    key_gemini = st.secrets.get("GEMINI_API_KEY", "")
-    headers_gemini = {
-        "Authorization": f"Bearer {key_gemini}",
-        "Content-Type": "application/json"
-    }
-    status, res = requisitar_api("://googleapis.com", headers_gemini, payload_gemini)
+    # O Gemini exige a chave passada diretamente via query param na URL pública
+    url_gemini = f"://googleapis.com{key_gemini}"
+    status, res = requisitar_api_v2(url_gemini, {}, payload_gemini)
     if status == 200:
         try:
             return json.loads(res)["choices"]["message"]["content"]
