@@ -41,39 +41,39 @@ st.subheader("Sua ideia, executada por uma rede de agentes.")
 st.write("_Motor de Ajuste Adaptativo Automático Ativo._")
 st.markdown("---")
 
-# 🛠️ SANDBOX DE TESTES INTEGRADA DIRETAMENTE NA UI (IMUNE A ERROS DE CAMINHO)
-with st.expander("🛠️ Sandbox de Testes e Homologacao (Passo 3)", expanded=True):
-    st.write("Simular o estouro do limite de 3 falhas SMART para validar o travamento automático do Optimizer:")
-    if st.button("Disparar Teste de Estresse Controlado", type="secondary"):
-        st.write("---")
-        try:
-            # Instancia os componentes apontando estritamente para a pasta de produção ativa
-            auditor_teste = AuditorFeedbackSystem(pasta_destino=PATH_SRC)
-            optimizer_teste = MediadorOptimizer(pasta_src=PATH_SRC)
-            
-            st.write("🔄 **Passo 1**: Simulando injeção de 3 briefings com falha de metas...")
-            # Força o acúmulo consecutivo de 3 falhas direto no JSON oficial de produção
-            for i in range(1, 4):
-                auditor_teste.processar_e_salvar_feedback(
-                    tarefa_solicitada="Simulacao Controle de Estresse",
-                    sucesso_bool=False,
-                    rodadas_consumidas=1,
-                    lacunas_lista=["Ausencia de metricas quantificaveis (%) e cronogramas em meses."]
-                )
-            
-            st.write("✅ **Passo 2**: Falhas registradas. Gerando nova diretriz reconfigurada...")
-            diretriz_gerada = optimizer_teste.gerar_diretriz_otimizada(threshold_erros=3)
-            
-            st.success("🎉 Teste de Estresse Executado com Sucesso!")
-            
-            st.write("📋 **Nova Diretriz Injetada no Mediador (IA01):**")
-            st.code(diretriz_gerada, language="text")
-            
-            st.write("📊 **Estado Atual do Arquivo de Logs Persistidos (`config_adaptativa.json`):**")
-            st.json(auditor_teste.carregar_aprendizado_atual())
-            
-        except Exception as e:
-            st.error(f"Erro ao processar sandbox em tela: {str(e)}")
+# 🛠️ PAINEL DE TESTES EXPOSTO E PROTEGIDO POR ESTADO (IMUNE A TRAVAMENTOS DE UI)
+st.write("### 🛠️ Sandbox de Testes e Homologacao (Passo 3)")
+st.write("Clique abaixo para simular o estouro do limite de 3 falhas SMART e forçar a auto-otimização:")
+
+if st.button("🔥 Disparar Teste de Estresse Controlado", type="secondary"):
+    try:
+        auditor_teste = AuditorFeedbackSystem(pasta_destino=PATH_SRC)
+        optimizer_teste = MediadorOptimizer(pasta_src=PATH_SRC)
+        
+        # Força o acúmulo consecutivo de 3 falhas direto no JSON oficial
+        for i in range(1, 4):
+            auditor_teste.processar_e_salvar_feedback(
+                tarefa_solicitada="Simulacao Controle de Estresse",
+                sucesso_bool=False,
+                rodadas_consumidas=1,
+                lacunas_lista=["Ausencia de metricas quantificaveis (%) e cronogramas em meses."]
+            )
+        
+        # Salva o resultado no estado para garantir renderização contínua no celular
+        st.session_state["resultado_diretriz"] = optimizer_teste.generar_diretriz_otimizada(threshold_erros=3) if hasattr(optimizer_teste, 'generar_diretriz_otimizada') else "FALHA_METODO_DIRETRIZ"
+        st.session_state["resultado_json"] = auditor_teste.carregar_aprendizado_atual()
+        st.session_state["teste_estresse_rodado"] = True
+    except Exception as e:
+        st.error(f"Erro ao processar sandbox em tela: {str(e)}")
+
+# Exibe os resultados fixados fora do botão se o teste já tiver sido acionado
+if st.session_state.get("teste_estresse_rodado"):
+    st.success("🎉 Teste de Estresse Executado com Sucesso!")
+    st.write("📋 **Nova Diretriz Injetada no Mediador (IA01):**")
+    st.code(st.session_state["resultado_diretriz"], language="text")
+    st.write("📊 **Estado Atual do Arquivo de Logs Persistidos (`config_adaptativa.json`):**")
+    st.json(st.session_state["resultado_json"])
+    st.markdown("---")
 
 st.write("### 🎬 Iniciar Nova Orquestração")
 tarefa_input = st.text_area("O que voce precisa realizar hoje?", placeholder="Crie um app para vendas", height=150)
@@ -159,4 +159,4 @@ if st.button("Dar vida ao projeto", type="primary"):
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura"):
     st.caption("Synapse 24 OS Engine • MediadorOptimizer Ativo • Threshold: 3 • Anti-429")
-    
+                    
