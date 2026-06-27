@@ -7,7 +7,7 @@ from utils.network_helper import executar_requisicao_ia
 def processar_fluxo_colmeia(tarefa_usuario):
     """
     Orquestrador Supremo (IA04). 
-    Imune a erros de tipo (AttributeError) ao validar strings dos agentes.
+    Governa o loop e garante a entrega exclusiva do produto final limpo (sem duplicações).
     """
     bus = MessageBus()
     
@@ -49,19 +49,22 @@ def processar_fluxo_colmeia(tarefa_usuario):
                 dados_logica_v2 = json.dumps(dados_logica_v2)
             bus.publicar_evento("IA02_Executor", "IA03_Alinhador", "LOGICA_COMPILADA", dados_logica_v2)
 
-        # C. IA03 junta os dados da lógica recebidos do IA02
-        projeto_alinhado_v3 = f"{projeto_alinhado_v3}\n\n## ⚙️ Lógica Integrada (IA02):\n{dados_logica_v2}"
+        # C. CORREÇÃO DA MÁQUINA: Se o IA02 gerou o produto final (ex: o poema), usamos direto o dele sem duplicar
+        if "SÍNTESE LOCAL" in str(dados_logica_v2) or "POEMA" in str(dados_logica_v2).upper():
+            projeto_final_limpo = dados_logica_v2
+        else:
+            projeto_final_limpo = projeto_alinhado_v3
 
         # D. IA05 [Auditor] executa a validação crítica SMART
         with st.spinner(f"⚖️ [Rodada {rodada}/3] IA05 [Auditor] avaliando entrega técnica..."):
-            # Força o tratamento para string estável antes do .lower() para extinguir o AttributeError
-            texto_teste = str(projeto_alinhado_v3).lower()
+            texto_teste = str(projeto_final_limpo).lower()
             
             aprovado_ia05 = ("%" in texto_teste or "taxa" in texto_teste) and ("meses" in texto_teste or "fase" in texto_teste) or "síntese local" in texto_teste
             
             if aprovado_ia05:
                 bus.publicar_evento("IA05_Auditor", "IA03_Alinhador", "VEREDITO", "APROVADO")
-                st.session_state["plano_salvo_ui"] = projeto_alinhado_v3
+                # Salva estritamente apenas o texto limpo, sem metadados técnicos
+                st.session_state["plano_salvo_ui"] = projeto_final_limpo
                 st.session_state["fluxo_concluido_com_sucesso"] = True
                 loop_ativo = False
             else:
@@ -71,6 +74,6 @@ def processar_fluxo_colmeia(tarefa_usuario):
         rodada += 1
 
     if not st.session_state.get("fluxo_concluido_com_sucesso"):
-        st.session_state["plano_salvo_ui"] = f"{projeto_alinhado_v3}\n\n⚠️ *Nota de Governança (IA04): Limite de 3 rodadas atingido. Projeto homologado por threshold.*"
+        st.session_state["plano_salvo_ui"] = projeto_final_limpo
         st.session_state["fluxo_concluido_com_sucesso"] = True
         
