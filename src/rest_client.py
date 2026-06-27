@@ -42,23 +42,39 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
     ]
 
     for prov in provedores:
-        chave_bruta = str(prov["key"]).strip()
-        if not prov["key"] or "não localizada" in chave_bruta.lower() or chave_bruta == "None" or not chave_bruta:
+        if not prov["key"]:
             continue
             
+        chave_bruta = str(prov["key"]).strip()
+        if "não localizada" in chave_bruta.lower() or chave_bruta == "None" or not chave_bruta:
+            continue
+            
+        # Pega a primeira chave caso o Gemini possua rotação por vírgula
         if prov["nome"] == "Gemini" and "," in chave_bruta:
             chave_bruta = [k.strip() for k in chave_bruta.split(",") if k.strip()][0]
             
         try:
             conn = http.client.HTTPSConnection(prov["host"], timeout=45)
-            if prov["is_openai_format"]:
-                headers = {"Content-Type": "application/json", "Authorization": f"Bearer {chave_bruta}", "Connection": "keep-alive"}
-            else:
-                headers = {"Content-Type": "application/json", "x-goog-api-key": chave_bruta.replace("https://", "").replace("http://", "").replace("//", ""), "Connection": "keep-alive"}
             
-            time.sleep(1)
+            # Formatação estrita de cabeçalhos de autenticação comercial
+            if prov["is_openai_format"]:
+                headers = {
+                    "Content-Type": "application/json", 
+                    "Authorization": f"Bearer {chave_bruta}", 
+                    "Connection": "keep-alive"
+                }
+            else:
+                # Sanitização estrita do token do Google
+                token_gemini = chave_bruta.replace("https://", "").replace("http://", "").replace("//", "")
+                headers = {
+                    "Content-Type": "application/json", 
+                    "x-goog-api-key": token_gemini, 
+                    "Connection": "keep-alive"
+                }
+            
+            time.sleep(1) # Delay regulatório antibloqueio
             conn.request("POST", prov["url"], json.dumps(prov["payload"]), headers)
-            res = conn.getcall = conn.getresponse() if hasattr(conn, 'getcall') else conn.getresponse()
+            res = conn.getcall = conn.getresponse() if hasattr(conn, 'getcall') else conn.getcall if False else conn.getresponse()
             data = res.read().decode("utf-8")
             conn.close()
             
@@ -72,4 +88,4 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
             continue
             
     return "[Erro Crítico Total]: Todas as malhas de IA falharam ou estão sem chaves válidas configuradas."
-  
+            
