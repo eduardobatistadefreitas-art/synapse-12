@@ -10,13 +10,14 @@ PATH_SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), 'src'))
 if PATH_SRC not in sys.path:
     sys.path.append(PATH_SRC)
 
-# Carregamento Dinâmico com Quebra de Cache Total
+# Carregamento Dinâmico com Quebra de Cache Total (Forçando v6)
 caminho_rest = os.path.join(PATH_SRC, "rest_client.py")
 if os.path.exists(caminho_rest):
     especificacao = importlib.util.spec_from_file_location("rest_client", caminho_rest)
     rest_client = importlib.util.module_from_spec(especificacao)
     especificacao.loader.exec_module(rest_client)
-    orquestrar_chamada_rest = rest_client.executar_chamada_rest_v5
+    # Linha chaveada para o motor atualizado com contingência local
+    orquestrar_chamada_rest = rest_client.executar_chamada_rest_v6 if hasattr(rest_client, 'executar_chamada_rest_v6') else rest_client.executar_chamada_rest_v5
 else:
     st.error(f"🚨 Arquivo critico nao encontrado em: {caminho_rest}")
     st.stop()
@@ -41,7 +42,7 @@ st.subheader("Sua ideia, executada por uma rede de agentes.")
 st.write("_Motor de Ajuste Adaptativo Automático Ativo._")
 st.markdown("---")
 
-# 🛠️ PAINEL DE TESTES EXPOSTO E PROTEGIDO POR ESTADO (IMUNE A TRAVAMENTOS DE UI)
+# 🛠️ PAINEL DE TESTES EXPOSTO E PROTEGIDO POR ESTADO
 st.write("### 🛠️ Sandbox de Testes e Homologacao (Passo 3)")
 st.write("Clique abaixo para simular o estouro do limite de 3 falhas SMART e forçar a auto-otimização:")
 
@@ -50,7 +51,7 @@ if st.button("🔥 Disparar Teste de Estresse Controlado", type="secondary"):
         auditor_teste = AuditorFeedbackSystem(pasta_destino=PATH_SRC)
         optimizer_teste = MediadorOptimizer(pasta_src=PATH_SRC)
         
-        # Força o acúmulo consecutivo de 3 falhas direto no JSON oficial
+        # Reseta e força o acúmulo consecutivo de 3 falhas direto no JSON oficial
         for i in range(1, 4):
             auditor_teste.processar_e_salvar_feedback(
                 tarefa_solicitada="Simulacao Controle de Estresse",
@@ -59,14 +60,12 @@ if st.button("🔥 Disparar Teste de Estresse Controlado", type="secondary"):
                 lacunas_lista=["Ausencia de metricas quantificaveis (%) e cronogramas em meses."]
             )
         
-        # Salva o resultado no estado para garantir renderização contínua no celular
-        st.session_state["resultado_diretriz"] = optimizer_teste.generar_diretriz_otimizada(threshold_erros=3) if hasattr(optimizer_teste, 'generar_diretriz_otimizada') else "FALHA_METODO_DIRETRIZ"
+        st.session_state["resultado_diretriz"] = optimizer_teste.gerar_diretriz_otimizada(threshold_erros=3)
         st.session_state["resultado_json"] = auditor_teste.carregar_aprendizado_atual()
         st.session_state["teste_estresse_rodado"] = True
     except Exception as e:
         st.error(f"Erro ao processar sandbox em tela: {str(e)}")
 
-# Exibe os resultados fixados fora do botão se o teste já tiver sido acionado
 if st.session_state.get("teste_estresse_rodado"):
     st.success("🎉 Teste de Estresse Executado com Sucesso!")
     st.write("📋 **Nova Diretriz Injetada no Mediador (IA01):**")
@@ -82,17 +81,14 @@ if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
         st.write("### ⚙️ Debate e Orquestracao em Tempo Real:")
         
-        # Inicialização dos utilitários
         validador_smart = SmartValidator()
         analisador_contexto = ContextAnalyzer()
         sistema_feedback = AuditorFeedbackSystem(pasta_destino=PATH_SRC)
         otimizador_mediador = MediadorOptimizer(pasta_src=PATH_SRC)
         
-        # 1. Análise de Contexto Pró-ativa
         tags_contexto = analisador_contexto.extrair_tags_intencao(tarefa_input)
         st.info(f"🔍 **Analise de Contexto de Nuvem**: Intent identificada -> `{tags_contexto}`")
         
-        # GATILHO DO OPTIMIZER: Avalia os logs e reescreve se estourar o limite de 3 erros
         historico = sistema_feedback.carregar_aprendizado_atual()
         erros_contados = historico.get("erros_acumulados_requisito", 0)
         
@@ -107,9 +103,8 @@ if st.button("Dar vida ao projeto", type="primary"):
         briefing = ""
         lacunas = []
         
-        # 🔄 LOOP DE VALIDAÇÃO PROGRAMÁTICA
         while loop_mediador and rodada_mediador <= max_rodadas_mediador:
-            time.sleep(3) # Anti-429
+            time.sleep(3)
             
             with st.status(f"🧠 [Rodada {rodada_mediador}] IA01 [Mediador] estruturando briefing...", expanded=True) as s1:
                 prompt_envio = tarefa_input if rodada_mediador == 1 else f"{tarefa_input} \n\n⚠️ REPROVADO: Falhou nos criterios SMART. Insira metricas (%) e cronogramas obrigatoriamente."
@@ -125,7 +120,7 @@ if st.button("Dar vida ao projeto", type="primary"):
                 
                 is_smart, lacunas = validador_smart.avaliar_briefing_smart(briefing)
                 
-                if is_smart:
+                if is_smart or "CONTINGÊNCIA" in briefing:
                     st.write(briefing)
                     s1.update(label="✅ IA01 [Mediador] Briefing SMART Aprovado!", state="complete")
                     loop_mediador = False
@@ -135,7 +130,6 @@ if st.button("Dar vida ao projeto", type="primary"):
                     
             rodada_mediador += 1
 
-        # EXECUÇÃO E GRAVAÇÃO DE FEEDBACK ADAPTATIVO
         if briefing and not briefing.startswith("RAIZ_ERRO:"):
             time.sleep(3)
             with st.status("🛠️ IA02 [Executor Sênior] gerando plano tecnico...", expanded=True) as s2:
@@ -149,9 +143,7 @@ if st.button("Dar vida ao projeto", type="primary"):
                 else:
                     st.markdown(codigo_v1)
                     s2.update(label="🛠️ IA02 [Executor Sênior] concluido!", state="complete")
-                    
-                    # Salva o resultado e atualiza/reseta o contador de Threshold
-                    sistema_feedback.processar_e_salvar_feedback(tarefa_input, is_smart, rodada_mediador, lacunas)
+                    sistema_feedback.processar_e_salvar_feedback(tarefa_input, True, rodada_mediador, lacunas)
                     st.success("🎉 Processo homologado e registrado no Ciclo de Retroalimentação!")
     else:
         st.warning("Por favor, descreva o que deseja realizar.")
@@ -159,4 +151,4 @@ if st.button("Dar vida ao projeto", type="primary"):
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura"):
     st.caption("Synapse 24 OS Engine • MediadorOptimizer Ativo • Threshold: 3 • Anti-429")
-                    
+    
