@@ -21,24 +21,24 @@ else:
     st.error(f"🚨 Arquivo critico nao encontrado em: {caminho_rest}")
     st.stop()
 
-# Importacoes dos Modulos .py de Inteligencia e Adaptacao Estruturada
+# Importações Modulares de Inteligência e Otimização
 try:
     from src.agents.ia02_smart_validator import SmartValidator
-    from src.agents.ia02_executor_manager import executar_analise_gerencial
     from src.utils.context_analyzer import ContextAnalyzer
     from src.agents.ia05_auditor_feedback import AuditorFeedbackSystem
+    from src.agents.ia01_mediador_optimizer import MediadorOptimizer
 except ModuleNotFoundError:
     sys.path.append(os.path.join(PATH_SRC, "agents"))
     sys.path.append(os.path.join(PATH_SRC, "utils"))
     from ia02_smart_validator import SmartValidator
-    from ia02_executor_manager import executar_analise_gerencial
     from context_analyzer import ContextAnalyzer
     from ia05_auditor_feedback import AuditorFeedbackSystem
+    from ia01_mediador_optimizer import MediadorOptimizer
 
 st.set_page_config(page_title="Synapse 24 OS", page_icon="🧠", layout="centered")
 st.title("🧠 Synapse 24 OS")
 st.subheader("Sua ideia, executada por uma rede de agentes.")
-st.write("_Ecossistema Expandido com Analisador de Contexto e Aprendizado Continuo .py_")
+st.write("_Motor de Ajuste Adaptativo Automático Ativo._")
 st.markdown("---")
 
 st.write("### 🎬 Iniciar Nova Orquestração")
@@ -48,40 +48,44 @@ if st.button("Dar vida ao projeto", type="primary"):
     if tarefa_input.strip():
         st.write("### ⚙️ Debate e Orquestracao em Tempo Real:")
         
-        # Inicializacao dos utilitarios de back-end criados
+        # Inicialização dos utilitários
         validador_smart = SmartValidator()
         analisador_contexto = ContextAnalyzer()
         sistema_feedback = AuditorFeedbackSystem(pasta_destino=PATH_SRC)
+        otimizador_mediador = MediadorOptimizer(pasta_src=PATH_SRC)
         
-        # 1. Fase de Contexto Pro-ativa: Extracao de tags via Python nativo
+        # 1. Análise de Contexto Pró-ativa
         tags_contexto = analisador_contexto.extrair_tags_intencao(tarefa_input)
-        historico_aprendido = sistema_feedback.carregar_aprendizado_atual()
-        
         st.info(f"🔍 **Analise de Contexto de Nuvem**: Intent identificada -> `{tags_contexto}`")
-        if historico_aprendido.get("diretriz_ajustada") == "FORCAR_METRICAS_ESTRITAS_SMART":
-            st.caption("📈 *Ajuste Adaptativo*: Rodadas anteriores foram instaveis. Forcando rigor SMART maximo.*")
+        
+        # 🚀 GATILHO DO OPTIMIZER: O código avalia os logs e reescreve a diretriz se estourar o limite de 3 erros
+        historico = sistema_feedback.carregar_aprendizado_atual()
+        erros_contados = historico.get("erros_acumulados_requisito", 0)
+        
+        p_sistema_1 = otimizador_mediador.gerar_diretriz_otimizada(threshold_erros=3)
+        
+        if erros_contados >= 3:
+            st.warning(f"🚨 **Auto-Otimização Acionada**: {erros_contados} falhas seguidas detectadas. Diretriz do Mediador reconfigurada à força.")
 
         loop_mediador = True
         rodada_mediador = 1
         max_rodadas_mediador = 2
         briefing = ""
+        lacunas = []
         
-        # 🔄 LOOP DE VALIDAÇÃO PROGRAMÁTICA DO MEDIADOR (IA01)
+        # 🔄 LOOP DE VALIDAÇÃO PROGRAMÁTICA
         while loop_mediador and rodada_mediador <= max_rodadas_mediador:
-            time.sleep(3) # Pausa obrigatoria anti-spam de chaves
+            time.sleep(3) # Anti-429
             
             with st.status(f"🧠 [Rodada {rodada_mediador}] IA01 [Mediador] estruturando briefing...", expanded=True) as s1:
-                diretriz_historica = historico_aprendido.get("diretriz_ajustada", "NORMAL")
-                p_sistema_1 = f"Voce e o IA01 Mediador. Contexto: {tags_contexto}. Diretriz: {diretriz_historica}. Escreva um briefing tecnico contendo Objetivo, Requisitos com metricas (%) e Cronograma."
-                
-                prompt_envio = tarefa_input if rodada_mediador == 1 else f"{tarefa_input} \n\n⚠️ REPROVADO: O briefing anterior falhou nos criterios SMART do validador. Refatore inserindo metricas quantificaveis claras."
+                prompt_envio = tarefa_input if rodada_mediador == 1 else f"{tarefa_input} \n\n⚠️ REPROVADO: Falhou nos criterios SMART. Insira metricas (%) e cronogramas obrigatoriamente."
                 
                 briefing = orquestrar_chamada_rest(p_sistema_1, prompt_envio)
                 
                 if briefing.startswith("RAIZ_ERRO:"):
-                    s1.update(label="💥 Falha fisica de comunicacao na rede!", state="error")
+                    s1.update(label="💥 Falha de comunicacao na rede!", state="error")
                     st.error(briefing)
-                    sistema_feedback.processar_e_salvar_feedback(tarefa_input, False, rodada_mediador, logs_erro=briefing)
+                    sistema_feedback.processar_e_salvar_feedback(tarefa_input, False, rodada_mediador, ["Falha de Rede"])
                     loop_mediador = False
                     break
                 
@@ -89,36 +93,36 @@ if st.button("Dar vida ao projeto", type="primary"):
                 
                 if is_smart:
                     st.write(briefing)
-                    s1.update(label="✅ IA01 [Mediador] entregou um Briefing SMART Aprovado!", state="complete")
+                    s1.update(label="✅ IA01 [Mediador] Briefing SMART Aprovado!", state="complete")
                     loop_mediador = False
                 else:
-                    st.warning(f"⚠️ Briefing Reprovado pelo Validador .py (Rodada {rodada_mediador}). Lacunas: {', '.join(lacunas)}")
-                    s1.update(label="⚠️ Briefing incompleto. Solicitando refatoracao...", state="error")
+                    st.warning(f"⚠️ Briefing Reprovado (Rodada {rodada_mediador}). Lacunas: {', '.join(lacunas)}")
+                    s1.update(label="⚠️ Briefing incompleto. Refatorando...", state="error")
                     
             rodada_mediador += 1
 
-        # EXECUÇÃO TÉCNICA E SALVAMENTO DE APRENDIZADO CONTÍNUO
+        # EXECUÇÃO E GRAVAÇÃO DE FEEDBACK ADAPTATIVO
         if briefing and not briefing.startswith("RAIZ_ERRO:"):
             time.sleep(3)
             with st.status("🛠️ IA02 [Executor Sênior] gerando plano tecnico...", expanded=True) as s2:
-                p_sistema_2 = "Voce e o IA02 Executor Senior. Siga o briefing validado e estruture o plano de acao tecnico final em Markdown."
+                p_sistema_2 = "Voce e o IA02 Executor Senior. Siga o briefing validado e estruture o plano final em Markdown."
                 codigo_v1 = orquestrar_chamada_rest(p_sistema_2, briefing)
                 
                 if codigo_v1.startswith("RAIZ_ERRO:"):
                     s2.update(label="💥 Falha no Executor!", state="error")
                     st.error(codigo_v1)
-                    sistema_feedback.processar_e_salvar_feedback(tarefa_input, False, rodada_mediador, logs_erro=codigo_v1)
+                    sistema_feedback.processar_e_salvar_feedback(tarefa_input, False, rodada_mediador, ["Falha no Executor"])
                 else:
                     st.markdown(codigo_v1)
-                    s2.update(label="🛠️ IA02 [Executor Sênior] concluiu a entrega final!", state="complete")
+                    s2.update(label="🛠️ IA02 [Executor Sênior] concluido!", state="complete")
                     
-                    # 📈 CONSOLIDAR APRENDIZADO
-                    sistema_feedback.processar_e_salvar_feedback(tarefa_input, True, rodada_mediador)
-                    st.success("🎉 Processo homologado sob validacao SMART e persistido no Aprendizado Continuo!")
+                    # Salva o resultado e atualiza/reseta o contador de Threshold
+                    sistema_feedback.processar_e_salvar_feedback(tarefa_input, is_smart, rodada_mediador, lacunas)
+                    st.success("🎉 Processo homologado e registrado no Ciclo de Retroalimentação!")
     else:
         st.warning("Por favor, descreva o que deseja realizar.")
 
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura"):
-    st.caption("Synapse 24 OS Engine • ContextAnalyzer & Feedback System Ativos • Anti-429")
+    st.caption("Synapse 24 OS Engine • MediadorOptimizer Ativo • Threshold: 3 • Anti-429")
     
