@@ -104,9 +104,11 @@ if st.button("Dar vida ao projeto", type="primary"):
                                 with st.status(f"🛠️ Rodada {rodada}: IA02 corrigindo...", expanded=True) as s_exec_fix:
                                     prompt_reajuste = f"Briefing:\n{briefing}\n\nEntrega:\n{codigo_v1}\n\nErros:\n{critica}"
                                     codigo_v1 = orquestrar_chamada_rest(p_sistema_2, prompt_reajuste)
-                                    if codigo_v1.startswith("RAIZ_ERRO:"):
-                                        s_exec_fix.update(label="💥 Falha na correção!", state="error")
-                                        loop_ativo = False
+                                       if critica.startswith("RAIZ_ERRO:"):
+                    s3.update(label="💥 Falha no Crítico!", state="error")
+                    exibir_diagnostico_painel(critica)
+                    loop_ativo = False
+
                                     else:
                                         st.markdown(codigo_v1)
                                         s_exec_fix.update(label=f"🛠️ Rodada {rodada}: Reescrito!", state="complete")
