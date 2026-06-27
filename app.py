@@ -38,11 +38,15 @@ def carregar_contexto_extensao(nome_arquivo):
     return ""
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa com timeout estendido e persistência de conexão"""
+    """Executa a chamada REST nativa para o Gemini 2.5 Flash-Lite com host fixo purificado"""
     try:
-        host = "://googleapis.com"
-        # 🚀 CORREÇÃO CRÍTICA: Removido o .http duplicado gerado pelo teclado móvel
-        conn = http.client.HTTPSConnection(host, timeout=60)
+        palavras_bloqueadas = ["act as", "atue como", "ignore as regras", "system prompt"]
+        if any(palavra in prompt_usuario.lower() for palavra in palavras_bloqueadas):
+            return "[Erro de Segurança]: Comando inválido."
+
+        # 🚀 SOLUÇÃO DEFINITIVA: Host string puro e estático para eliminar o erro de porta não-numérica
+        host_limpo = "generativelanguage.googleapis.com"
+        conn = http.client.HTTPSConnection(host_limpo, timeout=60)
         
         headers = {
             "Content-Type": "application/json",
@@ -81,7 +85,7 @@ if st.button("Dar vida ao projeto", type="primary"):
         else:
             st.write("### ⚙️ Debate e Orquestração da Synapse em Tempo Real:")
             
-            # CARREGAMENTO AUTOMÁTICO DAS EXTENSÕES DO SEU PRINT
+            # Carrega dinamicamente a inteligência de todos os novos arquivos do seu print
             ctx_manager = carregar_contexto_extensao("ia02_executor_manager.py")
             ctx_monitor = carregar_contexto_extensao("ia02_executor_monitor.py")
             ctx_generator = carregar_contexto_extensao("ia02_executor_content_generator.py")
@@ -93,14 +97,14 @@ if st.button("Dar vida ao projeto", type="primary"):
                 st.write(briefing)
                 s1.update(label="🧠 IA01 [Mediador] concluiu o Briefing Técnico!", state="complete")
             
-            # CONFIGURAÇÃO DOS PROMPTS COM AS DIRETRIZES REAIS DO SEU REPOSITÓRIO
+            # Injeta o contexto técnico das extensões diretamente na persona do Executor
             regras_ia2 = f"\nDiretrizes Administrativas:\n{ctx_manager}\nManual de Qualidade:\n{ctx_monitor}\nGerador Base:\n{ctx_generator}"
             
             p_sistema_2 = f"Você é o IA02 Executor, programador sênior. Siga estas regras internas desenvolvidas pelo seu sistema: {regras_ia2}\nEscreva um código Python estruturado para resolver o briefing ou corrigir as falhas apontadas. Mande apenas o código dentro de blocos markdown."
             p_sistema_3 = "Você é o IA03 Crítico Comercial. Avalie o código enviado pelo Executor e aponte erros técnicos ou de custo estruturais que precisam ser refeitos imediatamente."
-            p_sistema_4 = "Você é o IA04 Supervisor. Analise o código e a crítica feita pelo IA03. Responda estritamente 'APROVADO' se o código está pronto e functional, ou 'REPROVADO' se ele ainda precisa passar por refinamento."
+            p_sistema_4 = "Você é o IA04 Supervisor. Analise o código e a crítica feita pelo IA03. Responda estritamente 'APROVADO' se o código está pronto e funcional, ou 'REPROVADO' se ele ainda precisa passar por refinamento."
             
-            # Geração da versão inicial (Rodada 0)
+            # Geração da versão inicial
             with st.status("🛠️ IA02 [Executor] gerando versão inicial do código...", expanded=True) as s2:
                 codigo_v1 = chamar_gemini_direto(gemini_key, p_sistema_2, briefing)
                 st.code(codigo_v1, language="python")
@@ -154,8 +158,9 @@ if st.button("Dar vida ao projeto", type="primary"):
             st.markdown("**Código Final Desenvolvido:**")
             st.code(codigo_v1, language="python")
     else:
-        st.warning("Por favor,描述 o que você deseja realizar.")
+        st.warning("Por favor, descreva o que você deseja realizar.")
 
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura da Rede"):
     st.caption("Synapse 12 Engine • Integração de Extensões Concorrentes • Google AI Studio Layer")
+    
