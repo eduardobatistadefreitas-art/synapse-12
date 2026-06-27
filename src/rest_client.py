@@ -127,3 +127,4 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
         logs_erros.append(f"💥 Gemini Erro (Status {status}): {res[:100]}")
 
     return f"RAIZ_ERRO:{json.dumps(logs_erros)}"
+    
