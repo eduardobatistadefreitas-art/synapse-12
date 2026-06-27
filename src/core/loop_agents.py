@@ -8,14 +8,20 @@ from agents.auditor import AuditorAgent
 
 def processar_fluxo_colmeia(tarefa_usuario):
     """
-    Orquestrador Central baseado na arquitetura de Barramento de Mensagens (Bus).
+    Orquestrador Central. Guarda as entregas no st.session_state 
+    para impedir apagamentos causados pelo re-run da interface.
     """
     bus = MessageBus()
     mediador = MediadorAgent()
     executor = ExecutorAgent()
     auditor = AuditorAgent()
     
-    # Carrega diretrizes adaptativas do Optimizer em disco
+    # Inicializa variáveis de sessão de segurança
+    st.session_state["briefing_salvo_ui"] = ""
+    st.session_state["plano_salvo_ui"] = ""
+    st.session_state["historico_rodadas_ui"] = []
+
+    # Carrega diretrizes adaptativas
     diretriz_sistema = "NORMAL"
     caminho_config = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config_adaptativa.json")
     if os.path.exists(caminho_config):
@@ -24,7 +30,6 @@ def processar_fluxo_colmeia(tarefa_usuario):
                 config = json.load(f)
                 if config.get("erros_acumulados", 0) >= 3:
                     diretriz_sistema = f"FORCAR_METRICAS_ESTRITAS_SMART (Alerta: {config.get('ultima_lacuna')})"
-                    st.warning(f"🚨 **Auto-Otimização Acionada**: Diretriz do Mediador enrijecida automaticamente pelo barramento.")
         except Exception: pass
 
     loop_ativo, rodada = True, 1
@@ -32,25 +37,28 @@ def processar_fluxo_colmeia(tarefa_usuario):
     
     # 🔄 Loop de Validação do Mediador
     while loop_ativo and rodada <= 2:
-        with st.spinner(f"🧠 [Rodada {rodada}] {mediador.name} processando briefing..."):
+        with st.spinner(f"🧠 [Rodada {rodada}] {mediador.name} processando..."):
             dados_envio = {"tarefa_usuario": tarefa_usuario, "diretriz_optimizer": diretriz_sistema, "rodada": rodada}
             briefing_final = mediador.executar(dados_envio)
             
             bus.publicar_evento(mediador.name, "SISTEMA", "BRIEFING_TEXTO", briefing_final)
-            
-            # Auditor analisa o briefing gerado via Barramento
             resultado_auditoria = auditor.executar({"briefing": briefing_final})
             
-            st.markdown(f"### 🧠 Briefing Gerado (Rodada {rodada})")
-            st.write(briefing_final)
+            # Registra o histórico da rodada na memória estável
+            st.session_state["historico_rodadas_ui"].append({
+                "rodada": rodada,
+                "texto": briefing_final,
+                "aprovado": resultado_auditoria["is_smart"],
+                "lacunas": resultado_auditoria["lacunas"]
+            })
             
             if resultado_auditoria["is_smart"]:
-                st.success("✅ Briefing validado e aprovado pelo validador SMART!")
                 loop_ativo = False
-            else:
-                st.warning(f"⚠️ Briefing Reprovado. Lacunas: {', '.join(resultado_auditoria['lacunas'])}")
                 
         rodada += 1
+
+    # Salva o Briefing Final consolidado
+    st.session_state["briefing_salvo_ui"] = briefing_final
 
     # Execução do Plano Técnico Final
     if briefing_final:
@@ -58,17 +66,7 @@ def processar_fluxo_colmeia(tarefa_usuario):
             plano_tecnico = executor.executar({"briefing": briefing_final})
             bus.publicar_evento(executor.name, "SISTEMA", "PLANO_FINAL", plano_tecnico)
             
-            st.markdown("### 🏁 Plano Técnico Final Homologado")
-            st.markdown(plano_tecnico)
-            st.success("🎉 Processo modular concluído via Barramento de Mensagens!")
+            # Salva o Plano Técnico Final consolidado na memória estável
+            st.session_state["plano_salvo_ui"] = plano_tecnico
+            st.session_state["dados_log_auditor"] = auditor.executar({"briefing": briefing_final})["dados_log"]
             
-            # Mostra estado final do JSON
-            st.json(auditor.executar({"briefing": briefing_final})["dados_log"])
-
-def rodar_teste_estresse_direto():
-    """Simula injeção forçada de erros no JSON corporativo."""
-    auditor = AuditorAgent()
-    for _ in range(3):
-        auditor.executar({"briefing": "Prompt ruim sem nada de dados quantificados."})
-    st.success("🎉 Sandbox: 3 erros injetados. Abra uma nova orquestração para ver o Optimizer agir!")
-          
