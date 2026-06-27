@@ -6,13 +6,12 @@ import traceback
 import streamlit as st
 
 def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
-    """Orquestrador resiliente purificado com isolamento estrito de host."""
-    # Definição dos provedores com hosts totalmente estáticos e intocáveis
+    """Orquestrador resiliente definitivo com correção de variáveis."""
     provedores = [
         {
             "nome": "NVIDIA",
             "key": st.secrets.get("NVIDIA_API_KEY"),
-            "host": "integrate.api.nvidia.com",
+            "host": "://nvidia.com",
             "url": "/v1/chat/completions",
             "payload": {"model": "meta/llama-3.3-70b-instruct", "messages": [{"role": "system", "content": prompt_sistema}, {"role": "user", "content": prompt_usuario}], "temperature": 0.3, "max_tokens": 1024},
             "is_openai_format": True
@@ -28,7 +27,7 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
         {
             "nome": "Groq",
             "key": st.secrets.get("GROQ_API_KEY"),
-            "host": "api.groq.com",
+            "host": "://groq.com",
             "url": "/openai/v1/chat/completions",
             "payload": {"model": "llama-3.3-70b-versatile", "messages": [{"role": "system", "content": prompt_sistema}, {"role": "user", "content": prompt_usuario}], "temperature": 0.3},
             "is_openai_format": True
@@ -36,7 +35,7 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
         {
             "nome": "Gemini",
             "key": st.secrets.get("GEMINI_API_KEY"),
-            "host": "generativelanguage.googleapis.com",
+            "host": "://googleapis.com",
             "url": "/v1/models/gemini-2.0-flash:generateContent",
             "payload": {"contents": [{"parts": [{"text": f"INSTRUÇÃO: {prompt_sistema}\n\nENTRADA: {prompt_usuario}"}]}], "generationConfig": {"temperature": 0.3}},
             "is_openai_format": False
@@ -57,10 +56,9 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
             
         # Tratamento seguro caso a string do Gemini possua rotação por vírgula
         if prov["nome"] == "Gemini" and "," in token_limpo:
-            token_limpo = token_limpo.split(",")[0].strip()
+            token_limpo = [k.strip() for k in token_limpo.split(",") if k.strip()][0]
             
         try:
-            # Conexão isolada usando estritamente a string limpa do host
             conn = http.client.HTTPSConnection(prov["host"], timeout=30)
             
             if prov["is_openai_format"]:
@@ -70,15 +68,17 @@ def orquestrar_chamada_rest(prompt_sistema, prompt_usuario):
                     "Connection": "keep-alive"
                 }
             else:
+                # 🚀 CORREÇÃO CRÍTICA: Variável corrigida para token_limpo eliminando o NameError
+                token_gemini_puro = token_limpo.replace("https://", "").replace("http://", "").replace("//", "")
                 headers = {
                     "Content-Type": "application/json", 
-                    "x-goog-api-key": token_gemini, 
+                    "x-goog-api-key": token_gemini_puro, 
                     "Connection": "keep-alive"
                 }
             
             time.sleep(0.5)
             conn.request("POST", prov["url"], json.dumps(prov["payload"]), headers)
-            res = conn.getcall = conn.getcall if hasattr(conn, 'getcall') else conn.getresponse()
+            res = conn.getcall = conn.getresponse() if hasattr(conn, 'getcall') else conn.getcall if False else conn.getresponse()
             data = res.read().decode("utf-8")
             conn.close()
             
