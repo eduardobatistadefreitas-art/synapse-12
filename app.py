@@ -4,7 +4,7 @@ import sys
 import os
 import json
 import http.client
-import time  # 🚀 IMPORTANTE: Necessário para a cadência e recuo de tempo
+import time
 
 # Garante que o Streamlit encontre a pasta 'src' no servidor em nuvem
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
@@ -25,9 +25,9 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 2.5 Flash com Retry Automático para Erro 429"""
+    """Executa a chamada REST nativa para o Gemini 2.5 Flash com correção estrita de host e retry"""
     tentativas = 3
-    atraso = 4  # Tempo inicial de espera em segundos para o recuo
+    atraso = 4
     
     for tentativa in range(tentativas):
         try:
@@ -35,8 +35,8 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
             if any(palavra in prompt_usuario.lower() for palavra in palavras_bloqueadas):
                 return "[Erro de Segurança]: Comando inválido."
 
-            host_base = "://googleapis.com"
-            host_limpo = host_base.split("//")[-1].split(":").strip("/")
+            # 🚀 CORREÇÃO DEFINITIVA: Host puro fixo em formato string, eliminando o erro '.strip' de listas
+            host_limpo = "://googleapis.com"
             
             conn = http.client.HTTPSConnection(host_limpo, timeout=60)
             headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
@@ -48,7 +48,6 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
                 "generationConfig": {"temperature": 0.3}
             })
             
-            # Adiciona um pequeno respiro padrão antes de submeter para evitar concorrência destrutiva
             time.sleep(2)
             
             url = f"/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
@@ -57,11 +56,10 @@ def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
             data = res.read().decode("utf-8")
             conn.close()
             
-            # 🛡️ CAPTURA SELETIVA DO ERRO 429
             if res.status == 429:
                 if tentativa < tentativas - 1:
                     time.sleep(atraso)
-                    atraso *= 2  # Recuo exponencial para dar tempo da API limpar a cota
+                    atraso *= 2
                     continue
                 return f"[Erro HTTP 429]: Limite de requisições excedido. Aguarde 1 minuto para tentar novamente."
                 
@@ -99,14 +97,15 @@ if st.button("Disparar Colmeia Supervisionada", type="primary"):
             p_supervisor = (
                 "Você é o IA04 Supervisor. Analise a última versão do código e a crítica feita pela IA03. "
                 "Responda estritamente com uma palavra: 'APROVADO' se o código resolve o briefing perfeitamente, "
-                "or 'REPROVADO' se ele ainda precisa passar por mais um ciclo de refatoração."
+                "ou 'REPROVADO' se ele ainda precisa passar por mais um ciclo de refatoração."
             )
             
             # Inicialização do loop de debate
             codigo_atual = chamar_gemini_direto(gemini_key, p_executor, briefing)
             loop_ativo = True
             rodada = 1
-            max_rodadas = 2  # Reduzido de 5 para 3 temporariamente para economizar cota no ambiente free
+            # 🚀 AJUSTE DE CUSTO: Travado em 2 rodadas para garantir blindagem do limite de tokens gratuitos
+            max_rodadas = 2
             
             while loop_ativo and rodada <= max_rodadas:
                 with st.expander(f"🔄 Rodada {rodada}: Debate Ativo & Decisão do Supervisor", expanded=True):
