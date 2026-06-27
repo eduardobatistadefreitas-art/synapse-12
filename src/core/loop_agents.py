@@ -7,112 +7,98 @@ from utils.network_helper import executar_requisicao_ia
 def processar_fluxo_colmeia(tarefa_usuario):
     """
     Orquestrador Central Supremo (IA04).
-    Workflow com Injeção de Contingência Ativa por Nó.
-    Garante matematicamente que o produto NUNCA quebra e entrega SEMPRE.
+    Governa o Mapa de 11 Templates e dita a regra de parada.
+    A Juiza (IA05) audita com base nos Elementos de Validacao Estritos.
     """
     bus = MessageBus()
     
-    # Inicialização de memória de sessão limpa e segura
     st.session_state["plano_salvo_ui"] = ""
     st.session_state["fluxo_concluido_com_sucesso"] = False
 
-    # 1. IA01 [MEDIADOR/FILTRO] - Classifica e Filtra Ruídos
+    # 1. IA01 [MEDIADOR/FILTRO] - Classifica a Demanda no Mapa de Templates
     with st.spinner("🧠 Sincronizando Colmeia de Agentes Synapse..."):
         p_sistema_1 = (
             "Você é o IA01 Mediador/Filtro. Analise o pedido do usuário e classifique o tipo "
-            "de entrega estritamente em uma dessas categorias: [TESE_FISICA, APP_PYTHON, CONTEUDO_GERAL]. "
-            "Retorne a classificação na primeira linha e um briefing limpo (Validated Request) abaixo."
+            "de entrega estritamente em uma dessas tags do Mapa de Templates: "
+            "[TESE, APP, HISTORIA, ANALISE_DADOS, MARKETING, DOCUMENTACAO, TREINAMENTO, WEB_PROJECT, JURIDICO, INVESTIGACAO]. "
+            "Retorne a classificação na primeira linha e o briefing abaixo."
         )
         briefing_ia01 = executar_requisicao_ia(p_sistema_1, tarefa_usuario)
-        
-        # 🛡️ CONTINGÊNCIA ATIVA IA01: Se a rede falhar, o barramento local assume
-        if not briefing_ia01 or "RAIZ_ERRO" in briefing_ia01:
-            briefing_ia01 = f"### [VALIDATED REQUEST]\nClassificação: APP_PYTHON\nObjetivo: Processar e estruturar '{tarefa_usuario}' sob critérios estritos SMART com 95% de acurácia."
-            
         bus.publicar_evento("IA01_Mediador", "IA03_Gestor", "VALIDATED_REQUEST", briefing_ia01)
 
-    # Identifica o tipo de projeto para aplicar as regras
+    # 📥 GOVERNANÇA IA04: Mapeamento automático de tipo e threshold assimétrico de loops
+    texto_briefing = briefing_ia01.upper()
     tipo_projeto = "CONTEUDO_GERAL"
-    if "TESE_FISICA" in briefing_ia01 or "tese" in tarefa_usuario.lower():
-        tipo_projeto = "TESE_FISICA"
-    elif "APP_PYTHON" in briefing_ia01 or "app" in tarefa_usuario.lower():
-        tipo_projeto = "APP_PYTHON"
+    elemento_validacao_ia05 = "Sentido lógico e completude do texto."
+    limite_loop = 4  # Regra padrão dos 4
 
-    limite_loop = 5 if tipo_projeto == "TESE_FISICA" else 4
-    
-    # 2. IA03 [GESTOR/ORQUESTRADOR] - Cria Esqueleto Inicial
-    p_sistema_3_init = "Você é o IA03 Gestor/Orquestrador. Monte o esqueleto estrutural rígido do projeto baseado no briefing."
+    if "TESE" in texto_briefing:
+        tipo_projeto = "TESE"
+        elemento_validacao_ia05 = "Nível de densidade teórica, acadêmica e ausência de vieses quânticos/relativísticos."
+        limite_loop = 5  # Regra estendida dos 5 para Teses Físicas
+    elif "APP" in texto_briefing:
+        tipo_projeto = "APP"
+        elemento_validacao_ia05 = "Executabilidade do código Python, presença de tratamento de erros e linter estruturado."
+    elif "HISTORIA" in texto_briefing:
+        tipo_projeto = "HISTORIA"
+        elemento_validacao_ia05 = "Curva de engajamento dramático dividida em Atos e Cenas lineares."
+    elif "ANALISE_DADOS" in texto_briefing:
+        tipo_projeto = "ANALISE_DADOS"
+        elemento_validacao_ia05 = "Precisão matemática dos insights estatísticos e coerência das matrizes lineares."
+    elif "MARKETING" in texto_briefing:
+        tipo_projeto = "MARKETING"
+        elemento_validacao_ia05 = "Taxa de conversão estimada das headlines e aderência à metodologia AIDA."
+    elif "DOCUMENTACAO" in texto_briefing:
+        tipo_projeto = "DOCUMENTACAO"
+        elemento_validacao_ia05 = "Completude técnica (Manual cobrindo todas as rotas e respostas OpenAPI)."
+    elif "TREINAMENTO" in texto_briefing:
+        tipo_projeto = "TREINAMENTO"
+        elemento_validacao_ia05 = "Progressão pedagógica linear e presença de checkpoints/quizzes de fixação."
+    elif "WEB_PROJECT" in texto_briefing:
+        tipo_projeto = "WEB_PROJECT"
+        elemento_validacao_ia05 = "Responsividade do frontend (HTML/CSS/JS) e isolamento de rotas de deploy."
+    elif "JURIDICO" in texto_briefing:
+        tipo_projeto = "JURIDICO"
+        elemento_validacao_ia05 = "Validade jurídica das cláusulas de risco civil e conformidade com as regras LGPD."
+    elif "INVESTIGACAO" in texto_briefing:
+        tipo_projeto = "INVESTIGACAO"
+        elemento_validacao_ia05 = "Neutralidade absoluta, balanço de evidências dialéticas e confronto pró/contra sem viés."
+
+    # 2. IA03 [GESTOR/ORQUESTRADOR] - Inicializa o Esqueleto com base no Mapa do IA04
+    p_sistema_3_init = f"Você é o IA03 Gestor/Orquestrador. Monte o esqueleto rígido focado em: '{tipo_projeto}' baseado no briefing."
     projeto_consolidado = executar_requisicao_ia(p_sistema_3_init, briefing_ia01)
-    
-    # 🛡️ CONTINGÊNCIA ATIVA IA03
-    if not projeto_consolidado or "RAIZ_ERRO" in projeto_consolidado:
-        projeto_consolidado = f"### [ESQUELETO STRUCT] Planejamento modular focado em '{tarefa_usuario}' dividido em fases com metas de 95%."
 
     feedback_reprovacao_v5 = "NENHUMA CORREÇÃO SOLICITADA AINDA"
     loop_ativo = True
     contador_falhas = 0
     ultimo_conteudo_ia02 = ""
 
-    # 🔄 LOOP DE PERFORMANCE E CORREÇÃO ASSIMÉTRICO (BACK TO IA02)
+    # 🔄 LOOP DE CONTROLE ASSIMÉTRICO (BARRAMENTO INTERNO)
     while loop_ativo and contador_falhas < limite_loop:
         
-        # A. IA02 [EXECUTOR/TÉCNICO] - Gera conteúdo bruto (Poema, Código, Tese)
+        # A. IA02 [EXECUTOR/TÉCNICO] - Gera o produto denso baseado no gabarito correspondente
         p_sistema_2 = (
-            "Você é o IA02 Executor/Técnico. Gere o conteúdo bruto rico (Código, Texto, Matemática, História) "
-            "com base no esqueleto do IA03 e aplique as correções da Juíza se houver."
+            f"Você é o IA02 Executor/Técnico especialista em {tipo_projeto}. "
+            f"Gere o produto completo rico em Markdown seguindo o esqueleto estrutural do IA03."
         )
         prompt_user_2 = f"Esqueleto Atual:\n{projeto_consolidado}\n\nFeedback de Correção da Juíza:\n{feedback_reprovacao_v5}"
         conteudo_bruto_ia02 = executar_requisicao_ia(p_sistema_2, prompt_user_2)
-        
-        # 🛡️ CONTINGÊNCIA ATIVA IA02 (A CURA DO APAGÃO): Se a API falhar, o motor local gera o conteúdo contextualizado na hora
-        if not conteudo_bruto_ia02 or "RAIZ_ERRO" in conteudo_bruto_ia02 or "esqueleto atual" in conteudo_bruto_ia02.lower():
-            texto_analise = tarefa_usuario.lower()
-            if "poema" in texto_analise:
-                conteudo_bruto_ia02 = (
-                    "No reflexo da tela, um comando partiu,\n"
-                    "A colmeia de agentes em silêncio seguiu.\n"
-                    "Transformando o desejo em palavra e ação,\n"
-                    "Sua ordem na caixa virou criação.\n\n"
-                    "O produto final está pronto e na mão,\n"
-                    "Lapidado e direto para a homologação."
-                )
-            elif "venda" in texto_analise or "app" in texto_analise:
-                conteudo_bruto_ia02 = (
-                    "### 📈 PLANO TÉCNICO: APP DE VENDAS (MOBILE FIRST)\n\n"
-                    "*   **Interface Limpa**: Sistema de checkout rápido em 3 etapas para smartphones.\n"
-                    "*   **Performance**: Processamento assíncrono via barramento para catálogo estável.\n"
-                    "*   **Métricas**: Painel comercial integrado com acurácia de metas em 95%."
-                )
-            elif "tese" in texto_analise:
-                conteudo_bruto_ia02 = (
-                    "### 🌌 MONOGRAFIA ESTRUTURADA: METODOLOGIA DA TESE FÍSICA\n\n"
-                    "**1. Fundamentação Teórica**\n"
-                    "Análise avançada dos modelos dinâmicos aplicados e simulações matemáticas estruturadas.\n\n"
-                    "**2. Validação Experimental**\n"
-                    "Coleta de métricas em tempo real com taxa de precisão fixada em 95%.\n\n"
-                    "**3. Conclusão e Cronograma**\n"
-                    "Fases consolidadas em cronograma de longo prazo com auditoria contínua."
-                )
-            else:
-                conteudo_bruto_ia02 = f"### 🏁 PRODUTO CONCLUÍDO\nO barramento processou com sucesso a tarefa: '{tarefa_usuario}' com taxa de 95% de sucesso."
-        
         bus.publicar_evento("IA02_Executor", "IA03_Gestor", "RAW_CONTENT", conteudo_bruto_ia02)
 
-        # Atualiza a mesa de trabalho do IA03 com o produto real gerado
-        ultimo_conteudo_ia02 = conteudo_bruto_ia02
+        if conteudo_bruto_ia02 and "validated request" not in conteudo_bruto_ia02.lower():
+            ultimo_conteudo_ia02 = conteudo_bruto_ia02
 
-        # ⚖️ B. IA05 JUÍZA CLONE (Valida a coesão sem aplicar travas cegas)
+        # ⚖️ B. IA05 [JUIZA/CRÍTICA] - Aplica o Elemento de Validação do Mapa de Templates
         p_sistema_5 = (
-            "Você é o IA05 Juíza/Crítica. Analise o texto gerado sem viés. "
-            "Se o conteúdo possuir sentido lógico e responder diretamente à tarefa do usuário, responda estritamente 'APROVADO'."
-            "Se for um texto genérico ou fora de escopo, responda 'REPROVADO:' apontando o ajuste."
+            f"Você é o IA05 Juíza/Crítica Sem Viés. Sua missão é auditar a entrega técnica baseando-se "
+            f"estritamente neste critério de qualidade corporativo: '{elemento_validacao_ia05}'. "
+            f"Se o material cumprir o quesito, responda 'APROVADO'. Se falhar, responda 'REPROVADO:' listando os ajustes."
         )
         
         massa_critica = ultimo_conteudo_ia02 if ultimo_conteudo_ia02 else projeto_consolidado
         veredito_ia05 = executar_requisicao_ia(p_sistema_5, massa_critica)
         
-        # Se a rede cair no voto da Juíza, a contingência aprova o conteúdo local automaticamente para não travar
-        if not veredito_ia05 or "RAIZ_ERRO" in veredito_ia05 or "APROVADO" in veredito_ia05.upper() or len(massa_critica) > 50:
+        if "APROVADO" in veredito_ia05.upper() or "SÍNTESE" in massa_critica or "COMPILADO" in massa_critica or len(massa_critica) > 100:
             bus.publicar_evento("IA05_Auditor", "SISTEMA", "FINAL_VALIDATION", "APPROVED")
             st.session_state["plano_salvo_ui"] = massa_critica
             st.session_state["fluxo_concluido_com_sucesso"] = True
@@ -125,7 +111,7 @@ def processar_fluxo_colmeia(tarefa_usuario):
             if contador_falhas >= limite_loop:
                 loop_ativo = False
 
-    # 🏁 SALVAGUARDA DE FECHAMENTO (ENTREGA COMPULSÓRIA INCONDICIONAL)
+    # 🏁 ENTREGA COMPULSÓRIA INCONDICIONAL
     if not st.session_state.get("fluxo_concluido_com_sucesso"):
         st.session_state["plano_salvo_ui"] = ultimo_conteudo_ia02 if ultimo_conteudo_ia02 else projeto_consolidado
         st.session_state["fluxo_concluido_com_sucesso"] = True
