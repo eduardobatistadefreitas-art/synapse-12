@@ -1,11 +1,14 @@
 import streamlit as st
 import json
+import time
 
 def executar_chamada_rest_v5(prompt_sistema, prompt_usuario):
     """
     Orquestrador Synapse 24 via SDKs Oficiais.
-    100% Imune a erros de DNS, 405 ou falhas de formatacao de URL.
+    Leitura pura de tokens e espaçamento de requisições anti-429.
     """
+    # Pequena pausa pró-ativa para evitar o estouro de RPM (429) visto no gráfico do Diretor
+    time.sleep(2)
     logs_erros = []
 
     # -------------------------------------------------------------
@@ -37,15 +40,8 @@ def executar_chamada_rest_v5(prompt_sistema, prompt_usuario):
         from google import genai
         from google.genai import types
         
-        key_suja = st.secrets.get("GEMINI_API_KEY", "").strip()
-        
-        # Cura definitiva: extrai estritamente a partir do token real 'AQ.'
-        if "AQ." in key_suja:
-            key_gemini = "AQ." + key_suja.split("AQ.")[-1].split(",")[0].strip()
-        else:
-            key_gemini = key_suja.split(",")[0].strip()
-            
-        key_gemini = key_gemini.replace("'", "").replace('"', "").strip()
+        # Leitura 100% pura e sem filtros para nao quebrar a nova chave AQ.Ab8RN6Im...
+        key_gemini = st.secrets.get("GEMINI_API_KEY", "").strip()
 
         if key_gemini:
             client_gemini = genai.Client(api_key=key_gemini)
@@ -62,6 +58,5 @@ def executar_chamada_rest_v5(prompt_sistema, prompt_usuario):
     except Exception as e:
         logs_erros.append(f"💥 Gemini SDK Falhou: {str(e)[:60]}")
 
-    # Se ambas as rotas oficiais falharem, abre o painel visual
     return f"RAIZ_ERRO:{json.dumps(logs_erros)}"
     
