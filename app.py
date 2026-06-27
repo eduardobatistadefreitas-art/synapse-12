@@ -41,23 +41,39 @@ st.subheader("Sua ideia, executada por uma rede de agentes.")
 st.write("_Motor de Ajuste Adaptativo Automático Ativo._")
 st.markdown("---")
 
-# 🛠️ SANDBOX DE TESTES ISOLADA DO DIRETOR EDUARDO
-with st.expander("🛠️ Sandbox de Testes e Homologacao (Passo 3)", expanded=False):
-    st.write("Deseja simular o estouro de limite de 3 falhas SMART para validar o travamento automático do Optimizer?")
+# 🛠️ SANDBOX DE TESTES INTEGRADA DIRETAMENTE NA UI (IMUNE A ERROS DE CAMINHO)
+with st.expander("🛠️ Sandbox de Testes e Homologacao (Passo 3)", expanded=True):
+    st.write("Simular o estouro do limite de 3 falhas SMART para validar o travamento automático do Optimizer:")
     if st.button("Disparar Teste de Estresse Controlado", type="secondary"):
         st.write("---")
         try:
-            from src.agents.test_stress_smart import executar_teste_estresse_controlado
-            sucesso = executar_teste_estresse_controlado()
-            if sucesso:
-                st.success("🎉 Homologaçao Completa! Logs persistidos e diretriz endurecida no back-end.")
-                # Exibe o estado do JSON gerado localmente na sandbox
-                caminho_json = os.path.join(PATH_SRC, "agents", "config_adaptativa.json")
-                if os.path.exists(caminho_json):
-                    with open(caminho_json, "r", encoding="utf-8") as f:
-                        st.json(json.load(f))
+            # Instancia os componentes apontando estritamente para a pasta de produção ativa
+            auditor_teste = AuditorFeedbackSystem(pasta_destino=PATH_SRC)
+            optimizer_teste = MediadorOptimizer(pasta_src=PATH_SRC)
+            
+            st.write("🔄 **Passo 1**: Simulando injeção de 3 briefings com falha de metas...")
+            # Força o acúmulo consecutivo de 3 falhas direto no JSON oficial de produção
+            for i in range(1, 4):
+                auditor_teste.processar_e_salvar_feedback(
+                    tarefa_solicitada="Simulacao Controle de Estresse",
+                    sucesso_bool=False,
+                    rodadas_consumidas=1,
+                    lacunas_lista=["Ausencia de metricas quantificaveis (%) e cronogramas em meses."]
+                )
+            
+            st.write("✅ **Passo 2**: Falhas registradas. Gerando nova diretriz reconfigurada...")
+            diretriz_gerada = optimizer_teste.gerar_diretriz_otimizada(threshold_erros=3)
+            
+            st.success("🎉 Teste de Estresse Executado com Sucesso!")
+            
+            st.write("📋 **Nova Diretriz Injetada no Mediador (IA01):**")
+            st.code(diretriz_gerada, language="text")
+            
+            st.write("📊 **Estado Atual do Arquivo de Logs Persistidos (`config_adaptativa.json`):**")
+            st.json(auditor_teste.carregar_aprendizado_atual())
+            
         except Exception as e:
-            st.error(f"Erro ao rodar sandbox de teste: {str(e)}")
+            st.error(f"Erro ao processar sandbox em tela: {str(e)}")
 
 st.write("### 🎬 Iniciar Nova Orquestração")
 tarefa_input = st.text_area("O que voce precisa realizar hoje?", placeholder="Crie um app para vendas", height=150)
@@ -80,7 +96,7 @@ if st.button("Dar vida ao projeto", type="primary"):
         historico = sistema_feedback.carregar_aprendizado_atual()
         erros_contados = historico.get("erros_acumulados_requisito", 0)
         
-        p_sistema_1 = otimizador_mediador.generate_retry() if hasattr(otimizador_mediador, 'generate_retry') else otimizador_mediador.gerar_diretriz_otimizada(threshold_erros=3)
+        p_sistema_1 = otimizador_mediador.gerar_diretriz_otimizada(threshold_erros=3)
         
         if erros_contados >= 3:
             st.warning(f"🚨 **Auto-Otimização Acionada**: {erros_contados} falhas seguidas detectadas. Diretriz do Mediador reconfigurada à força.")
@@ -107,7 +123,7 @@ if st.button("Dar vida ao projeto", type="primary"):
                     loop_mediador = False
                     break
                 
-                is_smart, lacunas = validador_smart.avaliar_blindagem_smart(briefing) if hasattr(validador_smart, 'avaliar_blindagem_smart') else validador_smart.avaliar_briefing_smart(briefing)
+                is_smart, lacunas = validador_smart.avaliar_briefing_smart(briefing)
                 
                 if is_smart:
                     st.write(briefing)
