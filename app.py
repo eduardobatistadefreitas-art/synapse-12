@@ -24,10 +24,11 @@ tarefa_input = st.text_area(
 )
 
 def chamar_gemini_direto(api_key, prompt_sistema, prompt_usuario):
-    """Executa a chamada REST nativa para o Gemini 2.5 Flash de forma estável"""
+    """Executa a chamada REST nativa para o Gemini 2.5 Flash com sanitização corrigida"""
     try:
         palavras_bloqueadas = ["act as", "atue como", "ignore as regras", "system prompt"]
-        if any(palavra in prompt_usuario.lower() for palabra in palavras_bloqueadas):
+        # 🚀 CORREÇÃO CRÍTICA: Corrigido de 'palabra' para 'palavra' para eliminar o NameError
+        if any(palavra in prompt_usuario.lower() for palavra in palavras_bloqueadas):
             return "[Erro de Segurança]: Comando inválido."
 
         host = "://googleapis.com"
@@ -76,15 +77,15 @@ if st.button("Disparar Colmeia Supervisionada", type="primary"):
             p_critico = "Você é o IA03 Crítico Comercial e de Código. Analise o código enviado pelo Executor e aponte os erros e melhorias que precisam ser feitos. Se o código estiver imperfeito, exija correções."
             p_supervisor = (
                 "Você é o IA04 Supervisor. Analise a última versão do código e a crítica feita pela IA03. "
-                "Responda estritamente com uma palavra: 'APROVADO' se o código resolve o briefing perfeitamente e não precisa de mais ajustes, "
-                "ou 'REPROVADO' se ele ainda precisa passar por mais um ciclo de refatoração para corrigir falhas."
+                "Responda estritamente com uma palavra: 'APROVADO' se o código resolve o briefing perfeitamente, "
+                "ou 'REPROVADO' se ele ainda precisa passar por mais um ciclo de refatoração."
             )
             
             # Inicialização do loop de debate
             codigo_atual = chamar_gemini_direto(gemini_key, p_executor, briefing)
             loop_ativo = True
             rodada = 1
-            max_rodadas = 5 # Trava de segurança para evitar estouro de créditos/tokens
+            max_rodadas = 5
             
             while loop_ativo and rodada <= max_rodadas:
                 with st.expander(f"🔄 Rodada {rodada}: Debate Ativo & Decisão do Supervisor", expanded=True):
@@ -99,7 +100,6 @@ if st.button("Disparar Colmeia Supervisionada", type="primary"):
                         critica = chamar_gemini_direto(gemini_key, p_critico, codigo_atual)
                         st.write(critica)
                     
-                    # Chamada de julgamento do Supervisor (IA04)
                     st.markdown("---")
                     with st.spinner("⚖️ IA04 [Supervisor] avaliando qualidade do ciclo..."):
                         contexto_supervisao = f"Briefing:\n{briefing}\n\nCódigo:\n{codigo_atual}\n\nCrítica:\n{critica}"
@@ -110,7 +110,6 @@ if st.button("Disparar Colmeia Supervisionada", type="primary"):
                         loop_ativo = False
                     else:
                         st.warning(f"⚠️ Rodada {rodada}: IA04 [Supervisor] emitiu veredito: **REPROVADO**. Forçando refatoração!")
-                        # O Executor recebe o feedback do Crítico e reescreve para a próxima iteração do while
                         prompt_reajuste = f"Briefing Original:\n{briefing}\n\nCódigo Atual:\n{codigo_atual}\n\nErros para Corrigir:\n{critica}"
                         codigo_atual = chamar_gemini_direto(gemini_key, p_executor, prompt_reajuste)
                         rodada += 1
