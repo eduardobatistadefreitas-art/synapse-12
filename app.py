@@ -171,7 +171,7 @@ if st.button("Dar vida ao projeto", type="primary"):
                     st.info(f"**Requisitos do Projeto:**\n{briefing}")
                     st.markdown("**Conteúdo Final Desenvolvido:**")
                     st.markdown(codigo_v1)
-                                else:
+                else:
                     st.error(codigo_v1)
             else:
                 st.error(briefing)
@@ -181,5 +181,3 @@ if st.button("Dar vida ao projeto", type="primary"):
 st.markdown("---")
 with st.expander("⚙️ Ver Arquitetura da Rede"):
     st.caption("Synapse 24 Engine • Malha Multi-Chave Poliglota • Google AI Studio Layer")
-:
-                    
