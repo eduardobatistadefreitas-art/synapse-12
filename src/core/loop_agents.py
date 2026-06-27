@@ -7,8 +7,8 @@ from utils.network_helper import executar_requisicao_ia
 def processar_fluxo_colmeia(tarefa_usuario):
     """
     Orquestrador Central Supremo (IA04).
-    Implementa o workflow do infográfico entregando o produto final 
-    mesmo sob a flag de imperfeição (Regras 4 e 5).
+    Workflow Multi-Agent focado em ENTREGA GARANTIDA.
+    O IA03 entrega o produto do IA02 SEMPRE ao final do loop, mesmo sem aval do IA05.
     """
     bus = MessageBus()
     
@@ -44,11 +44,12 @@ def processar_fluxo_colmeia(tarefa_usuario):
     loop_ativo = True
     contador_falhas = 0
     feedback_reprovacao_v5 = "NENHUMA"
+    ultimo_conteudo_ia02 = ""
 
     # 🔄 LOOP DE PERFORMANCE E CORREÇÃO ASSIMÉTRICO (BACK TO IA02)
     while loop_ativo and contador_falhas < limite_loop:
         
-        # A. IA02 [EXECUTOR/TÉCNICO] - Gera conteúdo bruto
+        # A. IA02 [EXECUTOR/TÉCNICO] - Gera conteúdo bruto (Poema, Código, etc.)
         p_sistema_2 = (
             "Você é o IA02 Executor/Técnico. Gere o conteúdo bruto rico (Código, Texto, Matemática, História) "
             "com base no esqueleto do IA03 e aplique as correções da Juíza se houver."
@@ -57,8 +58,9 @@ def processar_fluxo_colmeia(tarefa_usuario):
         conteudo_bruto_ia02 = executar_requisicao_ia(p_sistema_2, prompt_user_2)
         bus.publicar_evento("IA02_Executor", "IA03_Gestor", "RAW_CONTENT", conteudo_bruto_ia02)
 
-        # B. IA03 [GESTOR] - Consolida os dados brutos recebidos do IA02
-        projeto_consolidado = conteudo_bruto_ia02
+        # ⚡ SALVAGUARDA: O IA03 memoriza o que o IA02 acabou de produzir para garantir que não se perca
+        if conteudo_bruto_ia02 and "Esqueleto Atual:" not in conteudo_bruto_ia02:
+            ultimo_conteudo_ia02 = conteudo_bruto_ia02
 
         # C. IA05 [JUIZA/CRÍTICA] - Analisa sem Viés / Positividade
         p_sistema_5 = (
@@ -66,11 +68,11 @@ def processar_fluxo_colmeia(tarefa_usuario):
             "Se o material estiver completo e atender perfeitamente à demanda, responda 'APROVADO'. "
             "Se faltar profundidade, responda 'REPROVADO:' seguido das falhas encontradas."
         )
-        veredito_ia05 = executar_requisicao_ia(p_sistema_5, projeto_consolidado)
+        veredito_ia05 = executar_requisicao_ia(p_sistema_5, ultimo_conteudo_ia02 if ultimo_conteudo_ia02 else projeto_consolidado)
         
         if "APROVADO" in veredito_ia05.upper():
             bus.publicar_evento("IA05_Auditor", "SISTEMA", "FINAL_VALIDATION", "APPROVED")
-            st.session_state["plano_salvo_ui"] = projeto_consolidado
+            st.session_state["plano_salvo_ui"] = ultimo_conteudo_ia02 if ultimo_conteudo_ia02 else projeto_consolidado
             st.session_state["fluxo_concluido_com_sucesso"] = True
             loop_ativo = False
         else:
@@ -81,13 +83,15 @@ def processar_fluxo_colmeia(tarefa_usuario):
             if contador_falhas >= limite_loop:
                 loop_ativo = False
 
-    # 🏁 ENTREGA COMPATÍVEL COM O SEU NOVO REQUISITO:
-    # Mesmo que dê erro e estoure o laço, entrega o texto produzido pelo IA02 + pequena tag de aviso discreta
+    # 🏁 ORDENS DO DIRETOR: Entrega forçada SEMPRE com o que estiver na mesa do IA03
     if not st.session_state.get("fluxo_concluido_com_sucesso"):
+        # Se o IA02 gerou o texto contextual, entrega ele. Caso contrário, entrega a base consolidada.
+        entrega_final = ultimo_conteudo_ia02 if ultimo_conteudo_ia02 else projeto_consolidado
+        
         if tipo_projeto == "TESE_FISICA":
-            st.session_state["plano_salvo_ui"] = f"{projeto_consolidado}\n\n_⚠️ Tese validada parcialmente (Limite de 5 falhas atingido)._"
+            st.session_state["plano_salvo_ui"] = f"{entrega_final}\n\n_⚠️ Tese validada parcialmente (Limite de 5 falhas atingido)._"
         else:
-            st.session_state["plano_salvo_ui"] = f"{projeto_consolidado}\n\n_⚠️ Produto final com imperfeições identificadas (Limite de 4 falhas atingido)._"
+            st.session_state["plano_salvo_ui"] = f"{entrega_final}\n\n_⚠️ Produto final com imperfeições identificadas (Limite de 4 falhas atingido)._"
         
         st.session_state["fluxo_concluido_com_sucesso"] = True
         
